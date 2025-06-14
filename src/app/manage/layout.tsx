@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import "./globals.css";
+import SidebarShell from "@/components/SidebarShell";
 
 export const metadata: Metadata = {
   title: "Fraktia - No-Code Agent Builder",
@@ -15,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`antialiased`}>
-        <main>{children}</main>
+        <SidebarShell>{children}</SidebarShell>
       </body>
     </html>
   );
