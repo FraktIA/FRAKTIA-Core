@@ -1,9 +1,15 @@
+"use client";
 import Header from "@/components/Header";
 import Nodes from "@/components/Nodes";
+import Modal from "@/components/Modal";
+import NoAccessComponent from "@/components/NoAccessComponent";
+import { useState } from "react";
 
 export default function Manage() {
+  const [allowed, setAllowed] = useState(false);
+
   return (
-    <div className="flex flex-col  h-full">
+    <div className="flex flex-col h-full relative">
       {/* Framework selection */}
       <Header />
       <div className="flex h-[88%] ">
@@ -38,6 +44,9 @@ export default function Manage() {
           </div>
         </section> */}
       </div>
+      <Modal isOpen={!allowed} onClose={() => {}}>
+        <NoAccessComponent onTryAnotherAccount={() => setAllowed(true)} />
+      </Modal>
     </div>
   );
 }

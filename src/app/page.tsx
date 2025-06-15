@@ -2,383 +2,17 @@
 import Logo from "@/components/Logo";
 import Image from "next/image";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef, useState } from "react";
-
-// Type definitions
-interface AgentCardProps {
-  src: string;
-  name: string;
-  id: string;
-  className?: string;
-  delay?: number;
-}
-
-interface NeuralNetworkProps {
-  numClusters?: number;
-  nodesPerCluster?: number;
-  nodeSize?: {
-    min: number;
-    max: number;
-  };
-  opacity?: {
-    min: number;
-    max: number;
-  };
-  connectionDistance?: {
-    intraCluster: number;
-    interCluster: number;
-  };
-  interClusterConnectionChance?: number;
-}
-
-// Neural Network Background
-const NeuralNetworkBackground = ({
-  numClusters = 16,
-  nodesPerCluster = 8,
-  nodeSize = { min: 0.5, max: 2.5 },
-  opacity = { min: 0.15, max: 0.15 },
-  connectionDistance = { intraCluster: 5, interCluster: 60 },
-  interClusterConnectionChance = 0.3,
-}: NeuralNetworkProps) => {
-  // Create clusters of nodes
-  const clusters = Array.from({ length: numClusters }, (_, clusterIndex) => {
-    // Calculate grid dimensions based on number of clusters
-    const gridCols = Math.ceil(Math.sqrt(numClusters));
-    const gridRows = Math.ceil(numClusters / gridCols);
-
-    // Calculate cluster position in grid
-    const col = clusterIndex % gridCols;
-    const row = Math.floor(clusterIndex / gridCols);
-
-    // Distribute clusters evenly across the screen
-    const centerX = 15 + col * (70 / (gridCols - 1 || 1));
-    const centerY = 15 + row * (70 / (gridRows - 1 || 1));
-
-    return Array.from({ length: nodesPerCluster }, (_, i) => ({
-      id: `${clusterIndex}-${i}`,
-      // Create nodes within a smaller radius around the cluster center
-      x: centerX + (Math.random() - 0.5) * 20,
-      y: centerY + (Math.random() - 0.5) * 20,
-      size: Math.random() * (nodeSize.max - nodeSize.min) + nodeSize.min,
-      delay: Math.random() * 2,
-      cluster: clusterIndex,
-    }));
-  });
-
-  const nodes = clusters.flat();
-
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <svg className="w-full h-full">
-        {/* Connections between nodes within the same cluster */}
-        {clusters.map((cluster, clusterIndex) =>
-          cluster.map((node, i) =>
-            cluster.slice(i + 1).map((otherNode, j) => {
-              const distance = Math.sqrt(
-                Math.pow(node.x - otherNode.x, 2) +
-                  Math.pow(node.y - otherNode.y, 2)
-              );
-              if (distance < connectionDistance.intraCluster) {
-                return (
-                  <motion.line
-                    key={`line-${clusterIndex}-${i}-${j}`}
-                    x1={`${node.x}%`}
-                    y1={`${node.y}%`}
-                    x2={`${otherNode.x}%`}
-                    y2={`${otherNode.y}%`}
-                    stroke="#F8FF99"
-                    strokeWidth="0.3"
-                    initial={{ opacity: 0 }}
-                    animate={{
-                      opacity: [0, opacity.min, 0],
-                      strokeWidth: [0.2, 0.5, 0.2],
-                    }}
-                    transition={{
-                      duration: 3,
-                      repeat: Infinity,
-                      delay: Math.random() * 3,
-                    }}
-                  />
-                );
-              }
-              return null;
-            })
-          )
-        )}
-
-        {/* Occasional connections between clusters */}
-        {clusters.map((cluster, clusterIndex) =>
-          cluster.slice(0, 2).map((node, nodeIndex) =>
-            clusters
-              .slice(clusterIndex + 1)
-              .map((otherCluster, otherClusterIndex) =>
-                otherCluster.slice(0, 2).map((otherNode, otherNodeIndex) => {
-                  const distance = Math.sqrt(
-                    Math.pow(node.x - otherNode.x, 2) +
-                      Math.pow(node.y - otherNode.y, 2)
-                  );
-                  if (
-                    distance < connectionDistance.interCluster &&
-                    Math.random() > 1 - interClusterConnectionChance
-                  ) {
-                    return (
-                      <motion.line
-                        key={`inter-cluster-${clusterIndex}-${nodeIndex}-${otherClusterIndex}-${otherNodeIndex}`}
-                        x1={`${node.x}%`}
-                        y1={`${node.y}%`}
-                        x2={`${otherNode.x}%`}
-                        y2={`${otherNode.y}%`}
-                        stroke="#F8FF99"
-                        strokeWidth="0.2"
-                        initial={{ opacity: 0 }}
-                        animate={{
-                          opacity: [0, opacity.min * 0.75, 0],
-                          strokeWidth: [0.1, 0.3, 0.1],
-                        }}
-                        transition={{
-                          duration: 4,
-                          repeat: Infinity,
-                          delay: Math.random() * 4,
-                        }}
-                      />
-                    );
-                  }
-                  return null;
-                })
-              )
-          )
-        )}
-
-        {/* Animated nodes */}
-        {nodes.map((node) => (
-          <motion.circle
-            key={node.id}
-            cx={`${node.x}%`}
-            cy={`${node.y}%`}
-            r={node.size}
-            fill="#F8FF99"
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{
-              opacity: [opacity.min, opacity.max, opacity.min],
-              scale: [0.8, 1.1, 0.8],
-              r: [node.size, node.size + 1, node.size],
-            }}
-            transition={{
-              duration: 4,
-              repeat: Infinity,
-              delay: node.delay,
-              ease: "easeInOut",
-            }}
-          />
-        ))}
-      </svg>
-    </div>
-  );
-};
-
-// Geometric Grid Background
-const GeometricGridBackground = () => {
-  const gridSize = 8;
-  const cells = Array.from({ length: gridSize * gridSize }, (_, i) => ({
-    id: i,
-    x: (i % gridSize) * (100 / gridSize),
-    y: Math.floor(i / gridSize) * (100 / gridSize),
-    delay: Math.random() * 4,
-  }));
-
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
-      <svg className="w-full h-full">
-        {cells.map((cell) => (
-          <motion.rect
-            key={cell.id}
-            x={`${cell.x}%`}
-            y={`${cell.y}%`}
-            width={`${100 / gridSize}%`}
-            height={`${100 / gridSize}%`}
-            fill="none"
-            stroke="#F8FF99"
-            strokeWidth="0.5"
-            initial={{ opacity: 0 }}
-            animate={{
-              opacity: [0, 0.8, 0],
-              strokeWidth: [0.5, 2, 0.5],
-            }}
-            transition={{
-              duration: 6,
-              repeat: Infinity,
-              delay: cell.delay,
-              ease: "easeInOut",
-            }}
-          />
-        ))}
-      </svg>
-    </div>
-  );
-};
-
-// Flowing Data Streams
-const DataStreamBackground = () => {
-  const streams = Array.from({ length: 8 }, (_, i) => ({
-    id: i,
-    x: (i * 15) % 100,
-    delay: i * 0.5,
-  }));
-
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {streams.map((stream) => (
-        <motion.div
-          key={stream.id}
-          className="absolute w-px bg-gradient-to-b from-transparent via-primary to-transparent"
-          style={{
-            left: `${stream.x}%`,
-            height: "200px",
-          }}
-          initial={{ y: "-200px", opacity: 0 }}
-          animate={{
-            y: ["calc(100vh + 200px)"],
-            opacity: [0, 1, 0],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            delay: stream.delay,
-            ease: "linear",
-          }}
-        />
-      ))}
-
-      {/* Binary code overlay */}
-      <div className="absolute inset-0 text-primary/20 text-xs leading-4 whitespace-pre overflow-hidden">
-        {Array.from({ length: 30 }, (_, i) => (
-          <motion.div
-            key={i}
-            className="absolute"
-            style={{
-              left: `${Math.random() * 95}%`,
-              top: `${Math.random() * 95}%`,
-            }}
-            initial={{ opacity: 0 }}
-            animate={{
-              opacity: [0, 0.6, 0],
-              y: [0, -20, -40],
-            }}
-            transition={{
-              duration: 4,
-              repeat: Infinity,
-              delay: Math.random() * 4,
-            }}
-          >
-            {Math.random() > 0.5 ? "01" : "10"}
-          </motion.div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-// Dynamic background selector (you can change this to test different backgrounds)
-const DynamicBackground = ({
-  type = "neural",
-  neuralProps,
-}: {
-  type?: "neural" | "grid" | "stream" | "particles";
-  neuralProps?: NeuralNetworkProps;
-}) => {
-  switch (type) {
-    case "neural":
-      return <NeuralNetworkBackground {...neuralProps} />;
-    case "grid":
-      return <GeometricGridBackground />;
-    case "stream":
-      return <DataStreamBackground />;
-    case "particles":
-    default:
-      // Original particles for comparison
-      const particles = Array.from({ length: 20 }, (_, i) => (
-        <motion.div
-          key={i}
-          className="particle"
-          style={{
-            width: Math.random() * 4 + 2,
-            height: Math.random() * 4 + 2,
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-          }}
-          animate={{
-            y: [0, -30, 0],
-            x: [0, Math.random() * 20 - 10, 0],
-            opacity: [0.3, 0.8, 0.3],
-          }}
-          transition={{
-            duration: Math.random() * 3 + 4,
-            repeat: Infinity,
-            delay: Math.random() * 2,
-          }}
-        />
-      ));
-      return (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {particles}
-        </div>
-      );
-  }
-};
-
-// Interactive agent card component
-const AgentCard = ({
-  src,
-  name,
-  id,
-  className = "",
-  delay = 0,
-}: AgentCardProps) => {
-  const [isHovered, setIsHovered] = useState(false);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.8, y: 50 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ delay, duration: 0.6, ease: "easeOut" }}
-      whileHover={{
-        scale: 1.05,
-        y: -5,
-        transition: { duration: 0.2 },
-      }}
-      onHoverStart={() => setIsHovered(true)}
-      onHoverEnd={() => setIsHovered(false)}
-      className={`flex gap-4.5 bg-dark/80 backdrop-blur-sm border border-primary/20 justify-center w-[250px] h-[97px] rounded-[20px] items-center cursor-pointer transition-all duration-300 ${className} ${
-        isHovered ? "neon-glow" : ""
-      }`}
-    >
-      <motion.div
-        animate={{ rotate: isHovered ? 360 : 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <Image
-          src={src}
-          width={67}
-          height={67}
-          alt={name}
-          className="rounded-full"
-        />
-      </motion.div>
-      <div className="flex flex-col gap-2">
-        <motion.p
-          className="text-white font-semibold text-[20px]"
-          animate={{ color: isHovered ? "#F8FF99" : "#ffffff" }}
-        >
-          {name}
-        </motion.p>
-        <p className="text-white/70 font-light text-xs">ID: {id}</p>
-      </div>
-    </motion.div>
-  );
-};
+import { useEffect, useRef } from "react";
+import { useAppKit, useAppKitAccount } from "@reown/appkit/react";
+// import { DynamicBackground } from "@/components/Background";
+import { AgentCard } from "@/components/AgentCard";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const { open } = useAppKit();
+  const { address } = useAppKitAccount();
   const containerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start start", "end start"],
@@ -491,18 +125,25 @@ export default function Home() {
     },
   ];
 
+  useEffect(() => {
+    if (address) {
+      router.push("/manage");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address]);
+
   return (
     <div
       ref={containerRef}
-      className="flex h-screen flex-col px-[8%] animated-bg relative overflow-hidden"
+      className="flex bg-[#191919] h-screen flex-col px-[8%] animated-bg relative overflow-hidden"
     >
       <Image
         src={"/images/bg.png"}
         fill
-        className="object-cover opacity-30"
+        className="object-cover opacity-70"
         alt="bg"
       />
-      <DynamicBackground type="neural" />
+      {/* <DynamicBackground type="neural" /> */}
 
       {/* Animated header */}
       <motion.header
@@ -517,14 +158,15 @@ export default function Home() {
         >
           <Logo />
         </motion.div>
-        <div className="p-3.5 gap-6 hidden justify-center lg:flex items-center rounded-[12px] glass">
-          <motion.div
+        <div className="p-3.5 gap-6 hidden justify-center lg:flex items-center rounded-[12px] glas bg-[#191919]">
+          <motion.button
             className="flex text-[#232323] rounded-[4px] justify-center items-center gap-1 w-[171px] h-[36px] bg-primary btn-interactive cursor-pointer"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
+            onClick={() => open()}
           >
             <p className="text-sm uppercase font-medium">Connect Wallet</p>
-          </motion.div>
+          </motion.button>
         </div>
       </motion.header>
 

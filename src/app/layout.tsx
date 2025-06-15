@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import WalletProvider from "@/providers/WalletProvider";
+import { headers } from "next/headers";
 
 export const metadata: Metadata = {
   title: "Fraktia - No-Code Agent Builder",
@@ -7,15 +9,19 @@ export const metadata: Metadata = {
     "Build powerful AI agents visually with Fraktia's no-code flow builder",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headersObj = await headers();
+  const cookies = headersObj.get("cookie");
   return (
     <html lang="en">
       <body className={`antialiased`}>
-        <main>{children}</main>
+        <WalletProvider cookies={cookies}>
+          <main>{children}</main>
+        </WalletProvider>
       </body>
     </html>
   );

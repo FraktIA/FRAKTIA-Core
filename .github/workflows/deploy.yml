@@ -1,0 +1,54 @@
+name: Deploy frontend to VPS
+
+on:
+  push:
+    branches:
+      - main  # Change this if your default branch is different
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e  # Exit on first error
+
+            cd fraktia || { echo "Error: 'fraktia' directory not found"; exit 1; }
+
+            # Pull latest changes
+            git fetch origin main || { echo "Error: Git fetch failed"; exit 1; }
+            git reset --hard origin/main || { echo "Error: Git reset    failed"; exit 1; }
+
+            # Ensure Node.js and npm are available
+            export NVM_DIR=~/.nvm
+            source ~/.nvm/nvm.sh
+
+            if ! command -v npm &> /dev/null; then
+              echo "Error: npm is not installed or not in PATH"
+              exit 1
+            fi
+
+            if ! command -v pm2 &> /dev/null; then
+              echo "Error: pm2 is not installed or not in PATH"
+              exit 1
+            fi
+
+            # Install dependencies
+            bun install   || { echo "Error: bun install failed"; exit 1; }
+
+            # Build the frontend
+            bun run build || { echo "Error: bun build failed"; exit 1; }
+
+            # Restart frontend with PM2
+            pm2 restart fraktia || { echo "Error: PM2 restart failed"; exit 1; }
+
+            echo "✅ Deployment successful!"
