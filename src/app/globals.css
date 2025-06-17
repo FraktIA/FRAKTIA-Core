@@ -37,6 +37,7 @@ body {
   color: var(--foreground);
   font-family: 'Nohemi', Arial, Helvetica, sans-serif;
   overflow-x: hidden;
+  height: 100vh;
 }
 
 /* Animated background */

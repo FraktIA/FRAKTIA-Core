@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import WalletProvider from "@/providers/WalletProvider";
 import { headers } from "next/headers";
+import { ReduxProvider } from "@/redux/provider";
 
 export const metadata: Metadata = {
   title: "Fraktia - No-Code Agent Builder",
@@ -20,7 +21,9 @@ export default async function RootLayout({
     <html lang="en">
       <body className={`antialiased`}>
         <WalletProvider cookies={cookies}>
-          <main>{children}</main>
+          <ReduxProvider>
+            <main className="h-full">{children}</main>
+          </ReduxProvider>
         </WalletProvider>
       </body>
     </html>

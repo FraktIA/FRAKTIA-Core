@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import NodePanel from "@/components/NodePanel";
+import SideBar from "@/components/SideBar";
 
 export default function SidebarShell({
   children,
@@ -9,8 +9,8 @@ export default function SidebarShell({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   return (
-    <div className="relative flex gap-5 py-5 px-5">
-      <NodePanel sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+    <div className="relative h-full flex gap-5 px-5">
+      <SideBar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
       {/* Floating button to show sidebar when hidden */}
       {!sidebarOpen && (
         <button
@@ -36,7 +36,7 @@ export default function SidebarShell({
       )}
       {/* Main content grows/shrinks with sidebar */}
       <main
-        className={`flex-1  text-white transition-all duration-300 ${
+        className={` h-[97%]  flex-1 mt-5   text-white transition-all duration-300 ${
           sidebarOpen ? "ml-[270px]" : "ml-0"
         }`}
       >

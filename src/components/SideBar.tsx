@@ -1,5 +1,11 @@
 "use client";
 
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import {
+  selectActiveNav,
+  setActiveNav,
+  setShowNodesPanel,
+} from "@/redux/slices/uiSlice";
 import Image from "next/image";
 import { useState } from "react";
 
@@ -8,10 +14,12 @@ type NodePanelProps = {
   setSidebarOpen: (open: boolean) => void;
 };
 
-const NodePanel = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
-  const [activeNav, setActiveNav] = useState("Framework");
+const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
+  // const [activeNav, setActiveNav] = useState("Framework");
   const [componentsOpen, setComponentsOpen] = useState(true);
   const [agentsOpen, setAgentsOpen] = useState(true);
+  const dispatch = useAppDispatch();
+  const activeNav = useAppSelector(selectActiveNav);
   const navItems = [
     {
       key: "Framework",
@@ -116,9 +124,14 @@ const NodePanel = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
       ),
     },
   ];
+
+  const setNodePanel = (item: string) => {
+    dispatch(setShowNodesPanel(true));
+    dispatch(setActiveNav(item));
+  };
   return (
     <aside
-      className={`fixed z-30 top-0 left-4 my-5 h-[97%] transition-transform duration-300 ${
+      className={`fixed z-30 top-0 left-4 h-[97%] transition-transform duration-300 mt-5 ${
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       } w-[270px] bg-dark rounded-[20px] text-white flex flex-col`}
     >
@@ -183,7 +196,7 @@ const NodePanel = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
                   <button
                     key={item.key}
                     className={`flex pl-[23px] relative items-center gap-[13px] py-1.5  focus:outline-none group`}
-                    onClick={() => setActiveNav(item.key)}
+                    onClick={() => setNodePanel(item.key)}
                   >
                     {/* L-shaped SVG with rightward curve towards the item */}
                     {index === 0 ? (
@@ -332,4 +345,4 @@ const NodePanel = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
   );
 };
 
-export default NodePanel;
+export default SideBar;

@@ -3,46 +3,38 @@ import Header from "@/components/Header";
 import Nodes from "@/components/Nodes";
 import Modal from "@/components/Modal";
 import NoAccessComponent from "@/components/NoAccessComponent";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import AgentBuilder from "@/components/AgentBuilder";
+import { useAppSelector } from "@/redux/hooks";
+import { useAppKitAccount } from "@reown/appkit/react";
+import { useRouter } from "next/navigation";
 
 export default function Manage() {
   const [allowed, setAllowed] = useState(false);
+  const { isConnected } = useAppKitAccount();
+  const { showNodesPanel } = useAppSelector((state) => state.ui);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isConnected) {
+      router.push("/");
+    }
+  }, [isConnected, router]);
+
+  // Don't render anything if not connected (will redirect)
+  if (!isConnected) {
+    return null;
+  }
 
   return (
-    <div className="flex flex-col h-full relative">
+    <div className="flex  h-full flex-1 relative">
       {/* Framework selection */}
-      <Header />
-      <div className="flex h-[88%] ">
-        <Nodes />
+      {showNodesPanel && <Nodes />}
+      <div className="flex  flex-col flex-1 ">
+        <Header />
         {/* Agent Builder */}
-        {/* <section className="flex-1 flex flex-col p-8 gap-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-[#E6E8EC]">
-              Agent Builder
-            </h2>
-            <div className="bg-[#23262F] rounded-lg px-4 py-2 text-xs text-[#B1B5C3] flex items-center gap-2">
-              <span>Completion</span>
-              <span className="bg-[#FFD600] text-[#23262F] rounded px-2 py-0.5 font-bold">
-                20% Done
-              </span>
-            </div>
-          </div>
-          <div className="flex-1 flex items-center justify-center border-2 border-dashed border-[#353945] rounded-xl bg-[#181A20]">
-            <span className="text-[#B1B5C3] text-center">
-              Drag and drop components here
-              <br />
-              Start by building your agent by adding components from the sidebar
-            </span>
-          </div>
-          <div className="flex justify-between mt-4">
-            <button className="bg-[#23262F] text-[#B1B5C3] rounded-lg px-8 py-2 font-semibold">
-              &larr; Previous
-            </button>
-            <button className="bg-[#FFD600] text-[#23262F] rounded-lg px-8 py-2 font-semibold">
-              Next &rarr;
-            </button>
-          </div>
-        </section> */}
+        <AgentBuilder />
       </div>
       <Modal isOpen={!allowed} onClose={() => {}}>
         <NoAccessComponent onTryAnotherAccount={() => setAllowed(true)} />
