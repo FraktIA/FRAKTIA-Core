@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { ReduxProvider } from "@/redux/provider";
 
 export const metadata: Metadata = {
-  title: "Fraktia - No-Code Agent Builder",
+  title: "FRAKTIΛ | AI-Powered Agents. Zero Code. Full Control.",
   description:
     "Build powerful AI agents visually with Fraktia's no-code flow builder",
 };
