@@ -107,8 +107,8 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
       ),
     },
     {
-      key: "Add-ons",
-      label: "Add-ons",
+      key: "Plugins",
+      label: "Plugins",
       svg: (active: boolean) => (
         <svg
           width="24"

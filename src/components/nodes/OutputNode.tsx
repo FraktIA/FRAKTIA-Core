@@ -8,21 +8,25 @@ type OutputNodeData = {
   label: string;
   type: string;
   configured: boolean;
+  template?: string;
 };
 
 export function OutputNode({
   data,
   selected,
 }: NodeProps & { data: OutputNodeData }) {
-  const outputInfo: Record<string, { name: string; icon: string }> = {
-    text: { name: "Text Response", icon: "💬" },
-    voice: { name: "Voice Response", icon: "🎵" },
-    action: { name: "Action", icon: "⚡" },
-    file: { name: "File Output", icon: "📄" },
-    api: { name: "API Call", icon: "🔌" },
-  };
+  // Use the label (which contains the actual output type name) instead of generic type
+  const displayName = data.label || data.type;
 
-  const info = outputInfo[data.type] || outputInfo.text;
+  // Get output type icon based on the label
+  const getOutputIcon = (name: string) => {
+    if (name.includes("Chat Output")) return "💬";
+    if (name.includes("API Output")) return "🔌";
+    if (name.includes("File Output")) return "📄";
+    if (name.includes("Voice Response")) return "🎵";
+    if (name.includes("Action")) return "⚡";
+    return "📤";
+  };
 
   return (
     <div
@@ -37,7 +41,7 @@ export function OutputNode({
             <div className="w-8 h-8 bg-lime-400 rounded-lg flex items-center justify-center">
               <Send className="w-4 h-4 text-black" />
             </div>
-            <span className="text-lg">{info.icon}</span>
+            <span className="text-lg">{getOutputIcon(displayName)}</span>
           </div>
           {data.configured ? (
             <CheckCircle className="w-5 h-5 text-lime-400" />
@@ -47,10 +51,22 @@ export function OutputNode({
         </div>
 
         {/* Title */}
-        <h3 className="text-white font-bold text-sm mb-1 tracking-wide uppercase">
-          {info.name}
+        <h3 className="text-white font-bold text-sm mb-1 tracking-wide">
+          {displayName}
         </h3>
-        <p className="text-gray-400 text-xs mb-3 font-mono">Output</p>
+        <p className="text-gray-400 text-xs mb-3 font-mono">OUTPUT CHANNEL</p>
+
+        {/* Output Details */}
+        <div className="mb-3 p-2 bg-gray-900 rounded-lg border border-gray-800">
+          <div className="text-lime-400 text-xs font-bold tracking-wide uppercase mb-1">
+            Type: {data.type}
+          </div>
+          {data.template && (
+            <div className="text-gray-400 text-xs font-mono">
+              Template: {data.template.substring(0, 30)}...
+            </div>
+          )}
+        </div>
 
         {/* Status */}
         <div className="flex items-center space-x-2">

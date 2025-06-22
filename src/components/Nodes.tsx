@@ -3,43 +3,59 @@ import React from "react";
 import { X } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { selectActiveNav, setShowNodesPanel } from "@/redux/slices/uiSlice";
+import { characterConfigs } from "@/constants/characters";
+import { CharacterConfig } from "@/types/nodes";
 
 interface NodePanelProps {
   onAddNode?: (nodeType: string, position?: { x: number; y: number }) => void;
   onOpenTemplates?: () => void;
 }
 
+// Define node structure with character support
+interface NodeItem {
+  name: string;
+  description: string;
+  highlight: boolean;
+  icon: string;
+  type: "Framework" | "AI Model" | "Voice" | "Character" | "Plugins";
+  character?: CharacterConfig;
+}
+
 // Node data organized by category
-const nodeData = {
+const nodeData: Record<string, NodeItem[]> = {
   Framework: [
     {
       name: "Eliza OS",
       description:
         "A powerful extensible framework designed for building conversational AI agents with advanced",
-      highlight: true,
-      icon: "/icons/framework.svg",
+      highlight: !true,
+      icon: "/icons/eliza.svg",
+      type: "Framework" as const,
     },
     {
       name: "LangGraph",
       description:
         "Build resilient language agents as graphs with built-in persistence and human-in-the-loop capabilities",
       highlight: false,
-      icon: "/icons/framework.svg",
+      icon: "/icons/langraph.svg",
+      type: "Framework" as const,
     },
     {
-      name: "LangChain",
+      name: "Copilot",
       description:
         "A framework for developing applications powered by language models with chain-of-thought reasoning",
       highlight: false,
-      icon: "/icons/framework.svg",
+      icon: "/icons/copilot.svg",
+      type: "Framework" as const,
     },
-    {
-      name: "AutoGen",
-      description:
-        "Multi-agent conversation framework enabling multiple AI agents to collaborate and solve complex tasks",
-      highlight: false,
-      icon: "/icons/framework.svg",
-    },
+    // {
+    //   name: "AutoGen",
+    //   description:
+    //     "Multi-agent conversation framework enabling multiple AI agents to collaborate and solve complex tasks",
+    //   highlight: false,
+    //   icon: "/icons/framework.svg",
+    //   type: "Framework" as const,
+    // },
   ],
   "AI Model": [
     {
@@ -47,28 +63,32 @@ const nodeData = {
       description:
         "Anthropic's advanced AI assistant with superior reasoning and safety capabilities for complex tasks",
       highlight: true,
-      icon: "/icons/brain.svg",
+      icon: "/icons/claude.svg",
+      type: "AI Model" as const,
     },
     {
-      name: "OpenAI GPT-4",
+      name: "OpenAI",
       description:
         "OpenAI's most capable multimodal model with enhanced reasoning and creative problem-solving abilities",
       highlight: false,
-      icon: "/icons/brain.svg",
+      icon: "/icons/openai.svg",
+      type: "AI Model" as const,
     },
     {
       name: "DeepSeek",
       description:
         "High-performance AI model optimized for code generation and mathematical reasoning tasks",
       highlight: false,
-      icon: "/icons/brain.svg",
+      icon: "/icons/deepseek.png",
+      type: "AI Model" as const,
     },
     {
-      name: "Gemini Pro",
+      name: "Gemini",
       description:
         "Google's advanced AI model with multimodal capabilities and strong performance across diverse domains",
       highlight: false,
-      icon: "/icons/brain.svg",
+      icon: "/icons/gemini.svg",
+      type: "AI Model" as const,
     },
   ],
   Voice: [
@@ -78,6 +98,7 @@ const nodeData = {
         "Premium AI voice synthesis with natural intonation and emotion for realistic speech generation",
       highlight: true,
       icon: "/icons/voice.svg",
+      type: "Voice" as const,
     },
     {
       name: "OpenAI Whisper",
@@ -85,6 +106,7 @@ const nodeData = {
         "Robust speech recognition system with multilingual support and high accuracy transcription",
       highlight: false,
       icon: "/icons/voice.svg",
+      type: "Voice" as const,
     },
     {
       name: "Azure Speech",
@@ -92,6 +114,7 @@ const nodeData = {
         "Microsoft's cloud-based speech services with real-time transcription and text-to-speech capabilities",
       highlight: false,
       icon: "/icons/voice.svg",
+      type: "Voice" as const,
     },
     {
       name: "Google Cloud Speech",
@@ -99,67 +122,98 @@ const nodeData = {
         "Advanced speech recognition and synthesis with support for 125+ languages and variants",
       highlight: false,
       icon: "/icons/voice.svg",
+      type: "Voice" as const,
     },
   ],
   Character: [
     {
-      name: "Personality Core",
+      name: characterConfigs.aiAssistant.name,
       description:
-        "Define unique character traits, behaviors, and communication styles for your AI agent",
+        "Professional AI assistant focused on accuracy and helpful responses across various domains",
       highlight: true,
       icon: "/icons/character.svg",
+      type: "Character" as const,
+      character: characterConfigs.aiAssistant,
     },
     {
-      name: "Memory System",
+      name: characterConfigs.creativeCompanion.name,
       description:
-        "Advanced memory management for maintaining context and learning from past interactions",
+        "Imaginative companion for artistic projects and creative brainstorming sessions",
       highlight: false,
       icon: "/icons/character.svg",
+      type: "Character" as const,
+      character: characterConfigs.creativeCompanion,
     },
     {
-      name: "Emotion Engine",
+      name: characterConfigs.technicalMentor.name,
       description:
-        "Emotional intelligence system for natural and empathetic conversational responses",
+        "Experienced developer mentor providing guidance on best practices and architecture",
       highlight: false,
       icon: "/icons/character.svg",
+      type: "Character" as const,
+      character: characterConfigs.technicalMentor,
     },
     {
-      name: "Backstory Builder",
+      name: characterConfigs.empatheticFriend.name,
       description:
-        "Create rich character backgrounds and histories to enhance authenticity and depth",
+        "Caring companion offering emotional support and genuine understanding",
       highlight: false,
       icon: "/icons/character.svg",
+      type: "Character" as const,
+      character: characterConfigs.empatheticFriend,
+    },
+    {
+      name: characterConfigs.gamingBuddy.name,
+      description:
+        "Enthusiastic gaming companion for strategy discussions and gaming community engagement",
+      highlight: false,
+      icon: "/icons/character.svg",
+      type: "Character" as const,
+      character: characterConfigs.gamingBuddy,
+    },
+    {
+      name: characterConfigs.caseyBlack.name,
+      description:
+        "Mysterious secret agent who shares insider tips and life hacks from the shadows",
+      highlight: false,
+      icon: "/icons/character.svg",
+      type: "Character" as const,
+      character: characterConfigs.caseyBlack,
     },
   ],
-  "Add-ons": [
+  Plugins: [
     {
-      name: "Web Scraper",
+      name: "Twitter Client",
       description:
-        "Extract and process web content for real-time information gathering and analysis",
-      highlight: true,
-      icon: "/icons/add-ons.svg",
+        "Run your agent 24/7 on twitter to automatically post and reply  tweets",
+      highlight: !true,
+      icon: "/icons/x.svg",
+      type: "Plugins" as const,
     },
-    {
-      name: "Database Connector",
-      description:
-        "Connect to various databases for data retrieval, storage, and management capabilities",
-      highlight: false,
-      icon: "/icons/add-ons.svg",
-    },
-    {
-      name: "API Gateway",
-      description:
-        "Manage external API integrations and handle authentication for third-party services",
-      highlight: false,
-      icon: "/icons/add-ons.svg",
-    },
-    {
-      name: "Analytics Dashboard",
-      description:
-        "Monitor agent performance, track conversations, and analyze user interaction patterns",
-      highlight: false,
-      icon: "/icons/add-ons.svg",
-    },
+    // {
+    //   name: "Database Connector",
+    //   description:
+    //     "Connect to various databases for data retrieval, storage, and management capabilities",
+    //   highlight: false,
+    //   icon: "/icons/add-ons.svg",
+    //   type: "Plugins" as const,
+    // },
+    // {
+    //   name: "API Gateway",
+    //   description:
+    //     "Manage external API integrations and handle authentication for third-party services",
+    //   highlight: false,
+    //   icon: "/icons/add-ons.svg",
+    //   type: "Plugins" as const,
+    // },
+    // {
+    //   name: "Analytics Dashboard",
+    //   description:
+    //     "Monitor agent performance, track conversations, and analyze user interaction patterns",
+    //   highlight: false,
+    //   icon: "/icons/add-ons.svg",
+    //   type: "Plugins" as const,
+    // },
   ],
 };
 
@@ -168,7 +222,8 @@ const Nodes = ({ onAddNode }: NodePanelProps) => {
   const activeNav = useAppSelector(selectActiveNav);
 
   // Get the current nodes based on active navigation
-  const currentNodes = nodeData[activeNav as keyof typeof nodeData] || [];
+  const currentNodes: NodeItem[] =
+    nodeData[activeNav as keyof typeof nodeData] || [];
 
   return (
     <section className="min-w-[26%] rounded-tl-[20px]  bg-dark  pl-5 h-[100%]   flex flex-col">
@@ -188,34 +243,64 @@ const Nodes = ({ onAddNode }: NodePanelProps) => {
         {currentNodes.map((node, idx) => (
           <button
             key={node.name + idx}
-            className={`rounded-3xl border-4 ${
+            className={`rounded-3xl border-1 ${
               node.highlight
                 ? "border-[#F8FF99]"
-                : "border-transparent ring-[1px] ring-inset ring-white/8"
-            } bg-bg w-[270px] h-[196px] p-6  flex flex-col gap-4 shadow-lg hover:border-[#F8FF99]/50 transition-all duration-200`}
+                : "border-transparent ring-[0px] ring-inset ring-white/8"
+            } bg-bg w-[270px] h-[196px] p-5  flex flex-col gap-4 shadow-lg hover:border-[#F8FF99]/50 transition-all duration-200`}
             onClick={() =>
               onAddNode && onAddNode(node.name, { x: 100, y: 100 })
+            }
+            title={
+              node.character
+                ? `Character: ${node.character.bio.join(" ")}`
+                : undefined
             }
           >
             <div className="flex items-start justify-between">
               {/* Dynamic icon based on node type */}
-              <Image src={node.icon} width={32} height={32} alt={node.name} />
-              {/* 3-dot menu */}
-              <span className="flex items-center justify-center w-8 h-8">
+              <Image
+                src={node.icon}
+                className="rounded-full"
+                width={32}
+                height={32}
+                alt={node.name}
+              />
+              {/* 3-dot menu with character indicator */}
+              <span className="flex items-center justify-center w-8 h-8 relative">
                 <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
                   <circle cx="12" cy="6" r="1.5" fill="#fff" />
                   <circle cx="12" cy="12" r="1.5" fill="#fff" />
                   <circle cx="12" cy="18" r="1.5" fill="#fff" />
                 </svg>
+                {/* Character configuration indicator */}
+                {node.character && (
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#F8FF99] rounded-full border border-bg"></div>
+                )}
               </span>
             </div>
-            <div className="flex flex-col gap-2 mt-2">
+            <div className="flex flex-col gap-2">
               <span className=" font-semibold text-white leading-tight">
                 {node.name}
               </span>
               <p className="text-xs font-light text-white leading-snug break-words">
                 {node.description}
               </p>
+              {/* Character-specific tags */}
+              {node.character && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {node.character.adjectives
+                    ?.slice(0, 2)
+                    .map((adj: string, adjIdx: number) => (
+                      <span
+                        key={adjIdx}
+                        className="text-[10px] px-2 py-1 bg-[#F8FF99]/20 text-[#F8FF99] rounded-full"
+                      >
+                        {adj}
+                      </span>
+                    ))}
+                </div>
+              )}
             </div>
           </button>
         ))}

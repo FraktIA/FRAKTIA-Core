@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, forwardRef, useImperativeHandle } from "react";
 
 import {
   ReactFlow,
@@ -20,15 +20,235 @@ import { VoiceNode } from "./nodes/VoiceNode";
 import { IntegrationNode } from "./nodes/IntegrationNode";
 import { LogicNode } from "./nodes/LogicNode";
 import { OutputNode } from "./nodes/OutputNode";
+import { CharacterNode } from "./nodes/CharacterNode";
 import { PropertiesPanel } from "./PropertiesPanel";
+import { characterConfigs } from "@/constants/characters";
+import { CharacterConfig } from "@/types/nodes";
+import Image from "next/image";
 
 const nodeTypes = {
   framework: FrameworkNode,
+  character: CharacterNode,
   model: ModelNode,
   voice: VoiceNode,
   integration: IntegrationNode,
   logic: LogicNode,
   output: OutputNode,
+};
+
+// Helper function to get node type from node name
+const getNodeType = (nodeName: string): string => {
+  const nodeTypeMap: Record<string, string> = {
+    // Framework nodes
+    "Eliza OS": "framework",
+    LangGraph: "framework",
+    LangChain: "framework",
+    AutoGen: "framework",
+
+    // Character nodes
+    "AI Assistant": "character",
+    "Creative Companion": "character",
+    "Technical Mentor": "character",
+    "Empathetic Friend": "character",
+    "Gaming Buddy": "character",
+    "Casey Black": "character",
+
+    // Model nodes
+    "GPT-4 Turbo": "model",
+    Claude: "model",
+    DeepSeek: "model",
+    Gemini: "model",
+    OpenAI: "model",
+    "Claude 3 Opus": "model",
+    "Gemini Pro": "model",
+    "GPT-4": "model",
+    "GPT-3.5 Turbo": "model",
+    "Claude 3 Sonnet": "model",
+    "Claude 3 Haiku": "model",
+    "Gemini Ultra": "model",
+    "Llama 2 70B": "model",
+    "Mistral 7B": "model",
+
+    // Voice nodes
+    Alloy: "voice",
+    Echo: "voice",
+    ElevenLabs: "voice",
+    "OpenAI Whisper": "voice",
+    "Azure Speech": "voice",
+    "Google Cloud Speech": "voice",
+    Fable: "voice",
+    Onyx: "voice",
+    Nova: "voice",
+    Shimmer: "voice",
+
+    // Integration nodes
+    "Twitter Client": "integration",
+    "Database Connector": "integration",
+    "API Gateway": "integration",
+    "Analytics Dashboard": "integration",
+
+    // Logic nodes
+    "If/Then": "logic",
+    "Switch/Case": "logic",
+    Loop: "logic",
+    Filter: "logic",
+    Transform: "logic",
+
+    // Output nodes
+    "Chat Output": "output",
+    "API Output": "output",
+    "File Output": "output",
+  };
+
+  return nodeTypeMap[nodeName] || "framework";
+};
+
+// Helper function to get character config by name
+const getCharacterConfig = (nodeName: string): CharacterConfig | null => {
+  const characterMap: Record<string, CharacterConfig> = {
+    "AI Assistant": characterConfigs.aiAssistant,
+    "Creative Companion": characterConfigs.creativeCompanion,
+    "Technical Mentor": characterConfigs.technicalMentor,
+    "Empathetic Friend": characterConfigs.empatheticFriend,
+    "Gaming Buddy": characterConfigs.gamingBuddy,
+    "Casey Black": characterConfigs.caseyBlack,
+  };
+
+  return characterMap[nodeName] || null;
+};
+
+// Helper function to get default node data
+const getDefaultNodeData = (nodeType: string, nodeName: string) => {
+  const baseData = {
+    label: nodeName,
+    configured: false,
+  };
+
+  switch (nodeType) {
+    case "character":
+      const characterConfig = getCharacterConfig(nodeName);
+      return {
+        ...baseData,
+        characterId: nodeName,
+        characterName: characterConfig ? characterConfig.name : nodeName,
+        customBio: characterConfig ? characterConfig.bio : [],
+        customPersonality: characterConfig ? characterConfig.system : "",
+        customAdjectives: characterConfig ? characterConfig.adjectives : [],
+        customTopics: characterConfig ? characterConfig.topics : [],
+        characterVoice: {
+          model: "alloy",
+          language: "en",
+          speed: 1.0,
+          pitch: 1.0,
+        },
+        behavior: {
+          temperature: 0.7,
+          maxTokens: 2048,
+          responseStyle: "casual" as const,
+          conversationLength: "medium" as const,
+        },
+        memory: {
+          enabled: true,
+          maxContextLength: 4096,
+          rememberUserPreferences: true,
+          conversationHistory: true,
+        },
+        plugins: {
+          enabled: characterConfig ? characterConfig.plugins || [] : [],
+          disabled: [],
+          customConfig: {},
+        },
+        // Mark character nodes as configured by default
+        label: characterConfig ? characterConfig.name : nodeName,
+        configured: true,
+      };
+    case "framework":
+      // Determine the framework type based on the node name
+      let frameworkType: "elizaos" | "autogen" | "crewai" | "langchain" =
+        "elizaos";
+      if (nodeName === "LangGraph" || nodeName === "LangChain") {
+        frameworkType = "langchain";
+      } else if (nodeName === "AutoGen") {
+        frameworkType = "autogen";
+      } else if (nodeName === "CrewAI") {
+        frameworkType = "crewai";
+      }
+
+      return {
+        ...baseData,
+        framework: frameworkType,
+        characterName: "",
+        personality: "",
+      };
+    case "model":
+      // Determine the provider and model based on the node name
+      let provider: "openai" | "anthropic" | "google" | "meta" | "local" =
+        "openai";
+      let model = "gpt-4-turbo-preview";
+
+      if (nodeName.includes("Claude")) {
+        provider = "anthropic";
+        model = nodeName.toLowerCase().replace(/\s+/g, "-");
+      } else if (nodeName.includes("Gemini")) {
+        provider = "google";
+        model = nodeName.toLowerCase().replace(/\s+/g, "-");
+      } else if (nodeName.includes("Llama")) {
+        provider = "meta";
+        model = nodeName.toLowerCase().replace(/\s+/g, "-");
+      } else if (nodeName.includes("Mistral")) {
+        provider = "local";
+        model = nodeName.toLowerCase().replace(/\s+/g, "-");
+      } else if (nodeName.includes("GPT")) {
+        provider = "openai";
+        model = nodeName.toLowerCase().replace(/\s+/g, "-");
+      }
+
+      return {
+        ...baseData,
+        model: model,
+        provider: provider,
+        apiKey: "",
+      };
+    case "voice":
+      // Determine the voice model based on the node name
+      let voiceModel = "alloy";
+      if (nodeName.includes("ElevenLabs")) {
+        voiceModel = "elevenlabs";
+      } else if (nodeName.includes("Whisper")) {
+        voiceModel = "whisper";
+      } else if (nodeName.includes("Azure")) {
+        voiceModel = "azure";
+      } else if (nodeName.includes("Google")) {
+        voiceModel = "google";
+      }
+
+      return {
+        ...baseData,
+        voice: voiceModel,
+        language: "en",
+        speed: 1.0,
+      };
+    case "integration":
+      return {
+        ...baseData,
+        service: nodeName,
+        endpoint: "",
+      };
+    case "logic":
+      return {
+        ...baseData,
+        condition: "if",
+        expression: "",
+      };
+    case "output":
+      return {
+        ...baseData,
+        type: "chat",
+        template: "",
+      };
+    default:
+      return baseData;
+  }
 };
 
 const initialNodes: Node[] = [
@@ -50,11 +270,16 @@ const flowStyles = {
   background: "linear-gradient(135deg, #191919 0%, #191919 100%)",
 };
 
-const AgentBuilder = () => {
+export interface AgentBuilderRef {
+  onAddNode: (nodeName: string, position?: { x: number; y: number }) => void;
+}
+
+const AgentBuilder = forwardRef<AgentBuilderRef>((props, ref) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [showTestPanel] = useState(false);
+
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
@@ -64,25 +289,27 @@ const AgentBuilder = () => {
     setSelectedNode(node);
   }, []);
 
-  // const onAddNode = useCallback(
-  //   (nodeType: string, position?: { x: number; y: number }) => {
-  //     const newNode: Node = {
-  //       id: `${Date.now()}`,
-  //       type: nodeType,
-  //       position: position || {
-  //         x: Math.random() * 400 + 50,
-  //         y: Math.random() * 400 + 50,
-  //       },
-  //       data: {
-  //         label: getNodeLabel(nodeType),
-  //         configured: false,
-  //         ...getDefaultNodeData(nodeType),
-  //       },
-  //     };
-  //     setNodes((nds) => [...nds, newNode]);
-  //   },
-  //   [setNodes]
-  // );
+  const onAddNode = useCallback(
+    (nodeName: string, position?: { x: number; y: number }) => {
+      const nodeType = getNodeType(nodeName);
+      const newNode: Node = {
+        id: `${nodeType}-${Date.now()}`,
+        type: nodeType,
+        position: position || {
+          x: Math.random() * 400 + 100,
+          y: Math.random() * 400 + 100,
+        },
+        data: getDefaultNodeData(nodeType, nodeName),
+      };
+      setNodes((nds) => [...nds, newNode]);
+    },
+    [setNodes]
+  );
+
+  // Expose onAddNode function to parent component
+  useImperativeHandle(ref, () => ({
+    onAddNode,
+  }));
 
   const onDeleteNode = useCallback(
     (nodeId: string) => {
@@ -110,52 +337,48 @@ const AgentBuilder = () => {
     [setNodes]
   );
 
-  // const validateFlow = useCallback(() => {
-  //   // Find framework node
-  //   const frameworkNode = nodes.find((node) => node.type === "framework");
-  //   if (!frameworkNode) {
-  //     return "No framework node found. Please add a framework node to start.";
-  //   }
-
-  //   // Find output node
-  //   const outputNode = nodes.find((node) => node.type === "output");
-  //   if (!outputNode) {
-  //     return "No output node found. Please add an output node to complete the flow.";
-  //   }
-
-  //   // Check if there's a path from framework to output
-  //   const visited = new Set<string>();
-  //   const queue = [frameworkNode.id];
-  //   visited.add(frameworkNode.id);
-
-  //   while (queue.length > 0) {
-  //     const currentId = queue.shift()!;
-  //     if (currentId === outputNode.id) {
-  //       return null; // Valid path found
-  //     }
-
-  //     // Add all connected nodes to the queue
-  //     edges.forEach((edge) => {
-  //       if (edge.source === currentId && !visited.has(edge.target)) {
-  //         visited.add(edge.target);
-  //         queue.push(edge.target);
-  //       }
-  //     });
-  //   }
-
-  //   return "No valid path found from framework to output node. Please connect the nodes properly.";
-  // }, [nodes, edges]);
   return (
     <div
-      className=" w-full   relative h-full"
+      className=" w-full bg-bg p-5 rounded-tl-[20px] relative h-full"
       style={{
         paddingRight:
           (selectedNode && !showTestPanel) || showTestPanel ? "320px" : "0",
       }}
     >
+      <div className="flex justify-between items-end">
+        <div className="max-w-[260px] font-light flex flex-col gap-2">
+          <h4 className="text-white text-sm font-medium">Agent Builder</h4>
+          <p className="text-xs text-white/70">
+            <span className="font-medium">Drag, Drop</span> and{" "}
+            <span className="font-medium">Connect</span> components to build
+            your agent
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-3.5">
+          <p className="text-white bg-dark text-xs w-[90px] h-[31px] rounded-[10px] flex justify-center items-center">
+            Step 1 of <span className="text-white/50 ml-1.5"> 5</span>
+          </p>
+          <div className="flex items-center gap-3">
+            <button className="flex cursor-pointer hover:scale-95 duration-300 active:scale-100 w-[150px] h-[45px] border border-[#757575] rounded-[8px] justify-center items-center gap-2">
+              <Image src={"/icons/arr.svg"} alt="arr" width={24} height={24} />
+              <p className="text-[#757575]">Previous</p>
+            </button>
+            <button className="flex cursor-pointer hover:scale-95 duration-300 active:scale-100 w-[150px] h-[45px] border border-[#1c1c1c] bg-white/70 rounded-[8px] justify-center items-center gap-2">
+              <p className="text-[#1c1c1c]">Next</p>
+              <Image
+                src={"/icons/arr2.svg"}
+                // className="rotate-180"
+                alt="arr"
+                width={24}
+                height={24}
+              />
+            </button>
+          </div>
+        </div>
+      </div>
       {/* Properties Panel or Test Panel */}
       {selectedNode && !showTestPanel && (
-        <div className="absolute right-0 z-40 w-80 h-full bg-black/90 border-l border-gray-800 backdrop-blur-sm">
+        <div className="absolute right-0 z-40 w-80 h-full">
           <PropertiesPanel
             node={selectedNode}
             onUpdateNode={onUpdateNode}
@@ -173,7 +396,7 @@ const AgentBuilder = () => {
         onNodeClick={onNodeClick}
         nodeTypes={nodeTypes}
         style={flowStyles}
-        className="bg-gradient-to-br  w-full from-gray-900 to-black"
+        className="bg-gradient-to-br rounded-tl-[20px]  w-full from-gray-900 to-black"
       >
         <Controls
           className="bg-black/80 border text-black border-gray-700 rounded-lg shadow-2xl"
@@ -194,6 +417,8 @@ const AgentBuilder = () => {
       </ReactFlow>
     </div>
   );
-};
+});
+
+AgentBuilder.displayName = "AgentBuilder";
 
 export default AgentBuilder;

@@ -8,21 +8,26 @@ type LogicNodeData = {
   label: string;
   condition: string;
   configured: boolean;
+  expression?: string;
 };
 
 export function LogicNode({
   data,
   selected,
 }: NodeProps & { data: LogicNodeData }) {
-  const logicInfo: Record<string, { name: string; icon: string }> = {
-    if: { name: "If/Then", icon: "🔀" },
-    loop: { name: "Loop", icon: "🔄" },
-    filter: { name: "Filter", icon: "🔍" },
-    transform: { name: "Transform", icon: "⚡" },
-    delay: { name: "Delay", icon: "⏱️" },
-  };
+  // Use the label (which contains the actual logic type name) instead of generic condition
+  const displayName = data.label || data.condition;
 
-  const info = logicInfo[data.condition] || logicInfo.if;
+  // Get logic type icon based on the label
+  const getLogicIcon = (name: string) => {
+    if (name.includes("If/Then")) return "🔀";
+    if (name.includes("Switch/Case")) return "🔀";
+    if (name.includes("Loop")) return "🔄";
+    if (name.includes("Filter")) return "🔍";
+    if (name.includes("Transform")) return "⚡";
+    if (name.includes("Delay")) return "⏱️";
+    return "🔀";
+  };
 
   return (
     <div
@@ -37,7 +42,7 @@ export function LogicNode({
             <div className="w-8 h-8 bg-lime-400 rounded-lg flex items-center justify-center">
               <GitBranch className="w-4 h-4 text-black" />
             </div>
-            <span className="text-lg">{info.icon}</span>
+            <span className="text-lg">{getLogicIcon(displayName)}</span>
           </div>
           {data.configured ? (
             <CheckCircle className="w-5 h-5 text-lime-400" />
@@ -47,10 +52,22 @@ export function LogicNode({
         </div>
 
         {/* Title */}
-        <h3 className="text-white font-bold text-sm mb-1 tracking-wide uppercase">
-          {info.name}
+        <h3 className="text-white font-bold text-sm mb-1 tracking-wide">
+          {displayName}
         </h3>
-        <p className="text-gray-400 text-xs mb-3 font-mono">Logic Control</p>
+        <p className="text-gray-400 text-xs mb-3 font-mono">LOGIC CONTROL</p>
+
+        {/* Logic Details */}
+        <div className="mb-3 p-2 bg-gray-900 rounded-lg border border-gray-800">
+          <div className="text-lime-400 text-xs font-bold tracking-wide uppercase mb-1">
+            Condition: {data.condition}
+          </div>
+          {data.expression && (
+            <div className="text-gray-400 text-xs font-mono">
+              Expression: {data.expression}
+            </div>
+          )}
+        </div>
 
         {/* Status */}
         <div className="flex items-center space-x-2">
