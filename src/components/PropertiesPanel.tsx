@@ -112,28 +112,28 @@ export function PropertiesPanel({
     onUpdateNode(node.id, updatedData);
   };
 
-  const handleObjectFieldChange = (
-    objectField: string,
-    field: string,
-    value: string | number | boolean | string[]
-  ) => {
-    const currentObject =
-      (localNodeData[objectField as keyof NodeData] as Record<
-        string,
-        unknown
-      >) || {};
-    const updatedObject = {
-      ...currentObject,
-      [field]: value,
-    };
+  // const handleObjectFieldChange = (
+  //   objectField: string,
+  //   field: string,
+  //   value: string | number | boolean | string[]
+  // ) => {
+  //   const currentObject =
+  //     (localNodeData[objectField as keyof NodeData] as Record<
+  //       string,
+  //       unknown
+  //     >) || {};
+  //   const updatedObject = {
+  //     ...currentObject,
+  //     [field]: value,
+  //   };
 
-    const updatedData = {
-      ...localNodeData,
-      [objectField]: updatedObject,
-    };
-    setLocalNodeData(updatedData);
-    onUpdateNode(node.id, updatedData);
-  };
+  //   const updatedData = {
+  //     ...localNodeData,
+  //     [objectField]: updatedObject,
+  //   };
+  //   setLocalNodeData(updatedData);
+  //   onUpdateNode(node.id, updatedData);
+  // };
 
   const handleArrayInputChange = (
     field: string,
