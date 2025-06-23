@@ -22,7 +22,7 @@ export default async function RootLayout({
       <body className={`antialiased`}>
         <WalletProvider cookies={cookies}>
           <ReduxProvider>
-            <main className="h-full">{children}</main>
+            <main className="h-full ">{children}</main>
           </ReduxProvider>
         </WalletProvider>
       </body>

@@ -2,12 +2,17 @@
 
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import {
+  selectActiveMenu,
   selectActiveNav,
+  setActiveMenu,
   setActiveNav,
   setShowNodesPanel,
+  setShowWalletDropdown,
+  toggleWalletDropdown,
 } from "@/redux/slices/uiSlice";
+import { useAppKitAccount, useDisconnect } from "@reown/appkit/react";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useRef } from "react";
 
 type NodePanelProps = {
   sidebarOpen: boolean;
@@ -16,10 +21,8 @@ type NodePanelProps = {
 
 const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
   // const [activeNav, setActiveNav] = useState("Framework");
-  const [componentsOpen, setComponentsOpen] = useState(true);
-  const [agentsOpen, setAgentsOpen] = useState(true);
-  const dispatch = useAppDispatch();
   const activeNav = useAppSelector(selectActiveNav);
+  const activeMenu = useAppSelector(selectActiveMenu);
   const navItems = [
     {
       key: "Framework",
@@ -124,25 +127,77 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
       ),
     },
   ];
+  const agentsOpen = activeMenu === "Agents";
+  const arenaOpen = activeMenu === "Arena";
+  const { isConnected } = useAppKitAccount();
+  const address = "0x8b315372696Ba1aaB397684018f7C33C033187E9";
+  const { disconnect } = useDisconnect();
+  const dispatch = useAppDispatch();
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const { showWalletDropdown } = useAppSelector((state) => state.ui);
 
   const setNodePanel = (item: string) => {
     dispatch(setShowNodesPanel(true));
     dispatch(setActiveNav(item));
   };
+
+  const handleLogout = async () => {
+    try {
+      // Open the AppKit modal with disconnect option
+      await disconnect();
+      dispatch(setShowWalletDropdown(false));
+    } catch (error) {
+      console.error("Error during logout:", error);
+      dispatch(setShowWalletDropdown(false));
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        dispatch(setShowWalletDropdown(false));
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dispatch]);
+
+  const handleWalletClick = () => {
+    // if (!isConnected) {
+    //   // If not connected, directly open the connect modal
+    //   open();
+    // } else {
+    // If connected, show the dropdown
+    dispatch(toggleWalletDropdown());
+    // }
+  };
   return (
     <aside
-      className={`fixed z-30 top-0 left-4 h-[97%] transition-transform duration-300 mt-5 ${
+      className={`absolute    overflow-scroll lg:fixed z-30 p-5 top-1/2 -translate-y-1/2 left-0 lg:left-4 h-[100%] transition-transform duration-300 mt-0 lg:mt-5 ${
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       } w-[270px] bg-dark rounded-[20px] text-white flex flex-col`}
     >
-      {/* Top: Logo and navigation */}
-      <div className="h-[65%]">
-        <div className="flex w-max h-max items-center gap-2 px-6 py-5 relative">
-          <span className="w-5 h-5 bg-primary rounded-full"></span>
+      {/* Logo and items */}
+      <div className="h-max">
+        <div className="flex w-max h-max mb-6  items-center gap-2   relative">
+          <Image
+            src={"/icons/LogoX.png"}
+            className="rounded-full"
+            width={20}
+            height={20}
+            alt="logo"
+          />
           <span className="text-2xl text-primary font-light">FRAKTIA</span>
           {/* Minimize/Show icon */}
           <button
-            className="ml-2 p-1 rounded hover:bg-[#23262F] transition-colors absolute right-[-32px] top-1/2 -translate-y-1/2 z-40"
+            className="ml-2 p-1 hidden lg:flex rounded hover:bg-[#23262F] transition-colors absolute right-[-32px] top-1/2 -translate-y-1/2 z-40"
             onClick={() => setSidebarOpen(!sidebarOpen)}
             aria-label={sidebarOpen ? "Minimize sidebar" : "Show sidebar"}
             type="button"
@@ -164,134 +219,138 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
             </svg>
           </button>
         </div>
-        <nav className="flex h-[85%] border-b-[0.5px] pb-11 border-[#D9D9D9]/40  flex-col gap-4 px-6 mt-2.5 relative z-20">
-          <div className="mt-8">
-            <button
-              className="flex hover:cursor-pointer items-center gap-2 w-full mb-6 select-none"
-              onClick={() => setComponentsOpen((v) => !v)}
-              aria-expanded={componentsOpen}
-            >
-              <h6 className="text-white text-sm font-semibold uppercase flex-1 text-left">
-                Components
-              </h6>
-              <svg
-                className={`transition-transform duration-200 w-4 h-4 ${
-                  componentsOpen ? "rotate-90" : "rotate-0"
-                }`}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-            {componentsOpen && (
-              <div className="mt-0 flex flex-col gap-6">
-                {navItems.map((item, index) => (
-                  <button
-                    key={item.key}
-                    className={`flex pl-[23px] relative items-center gap-[13px] py-1.5  focus:outline-none group`}
-                    onClick={() => setNodePanel(item.key)}
-                  >
-                    {/* L-shaped SVG with rightward curve towards the item */}
-                    {index === 0 ? (
-                      <svg
-                        className="absolute  left-0 top-[18px] h-max -z-5"
-                        width="20"
-                        height="65"
-                        viewBox="0 0 20 65"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          d="M4 40 V10 a8 8 0 0 1 8 -8 h4"
-                          stroke={
-                            index <=
-                            navItems.findIndex((nav) => nav.key === activeNav)
-                              ? "#F8FF99"
-                              : "#fff"
-                          }
-                          strokeWidth="4"
-                          strokeLinecap="round"
-                          fill="none"
-                        />
-                      </svg>
-                    ) : index === 1 ? (
-                      <svg
-                        className="absolute left-0 bottom-[18px] h-max -z-10"
-                        width="20"
-                        height="65" // Reduced from 85
-                        viewBox="0 0 20 65" // Reduced from 85
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          d="M4 0 v50 a8 8 0 0 0 8 8 h4" // Changed v70 to v50
-                          stroke={
-                            index <=
-                            navItems.findIndex((nav) => nav.key === activeNav)
-                              ? "#F8FF99"
-                              : "#fff"
-                          }
-                          strokeWidth="4"
-                          strokeLinecap="round"
-                          fill="none"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        className="absolute  left-0 bottom-[18px] h-max -z-10"
-                        width="20"
-                        height="85"
-                        viewBox="0 0 20 85"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          d="M4 0 v75 a8 8 0 0 0 8 8 h4"
-                          stroke={
-                            index <=
-                            navItems.findIndex((nav) => nav.key === activeNav)
-                              ? "#F8FF99"
-                              : "#fff"
-                          }
-                          strokeWidth="4"
-                          strokeLinecap="round"
-                          fill="none"
-                        />
-                      </svg>
-                    )}
-                    <span className="w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 bg-[#302C2C]">
-                      {item.svg(activeNav === item.key)}
-                    </span>
-                    <span
-                      className={`text-base cursor-pointer font-light transition-all duration-200 ${
-                        activeNav === item.key ? "text-primary" : "text-white"
-                      }`}
-                    >
-                      {item.label}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </nav>
       </div>
-      {/* Bottom: Agent list */}
-      <div className="px-6 mt-12 pb-8">
+      {/* Arena Steps */}
+
+      <nav className="flex h-max  border-b-[0.5px] border-[#D9D9D9]/40  flex-col justify-start py-5 relative z-20">
+        <button
+          className="flex    hover:cursor-pointer items-center gap-2 w-full mb-4 select-none"
+          onClick={() => {
+            dispatch(setActiveMenu("Arena"));
+          }}
+          aria-expanded={arenaOpen}
+        >
+          <h6 className="text-white text-sm font-semibold uppercase flex-1 text-left">
+            Arena
+          </h6>
+          <svg
+            className={`transition-transform duration-200 w-4 h-4 ${
+              arenaOpen ? "rotate-90" : "rotate-0"
+            }`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+        </button>
+        {arenaOpen && (
+          <div className="mt-0 flex flex-col gap-6">
+            {navItems.map((item, index) => (
+              <button
+                key={item.key}
+                className={`flex pl-[23px] relative items-center gap-[13px] py-1.5  focus:outline-none group`}
+                onClick={() => setNodePanel(item.key)}
+              >
+                {/* L-shaped SVG with rightward curve towards the item */}
+                {index === 0 ? (
+                  <svg
+                    className="absolute  left-0 top-[18px] h-max -z-5"
+                    width="20"
+                    height="65"
+                    viewBox="0 0 20 65"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M4 40 V10 a8 8 0 0 1 8 -8 h4"
+                      stroke={
+                        index <=
+                        navItems.findIndex((nav) => nav.key === activeNav)
+                          ? "#F8FF99"
+                          : "#fff"
+                      }
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                      fill="none"
+                    />
+                  </svg>
+                ) : index === 1 ? (
+                  <svg
+                    className="absolute left-0 bottom-[18px] h-max -z-10"
+                    width="20"
+                    height="65" // Reduced from 85
+                    viewBox="0 0 20 65" // Reduced from 85
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M4 0 v50 a8 8 0 0 0 8 8 h4" // Changed v70 to v50
+                      stroke={
+                        index <=
+                        navItems.findIndex((nav) => nav.key === activeNav)
+                          ? "#F8FF99"
+                          : "#fff"
+                      }
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                      fill="none"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className="absolute  left-0 bottom-[18px] h-max -z-10"
+                    width="20"
+                    height="85"
+                    viewBox="0 0 20 85"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M4 0 v75 a8 8 0 0 0 8 8 h4"
+                      stroke={
+                        index <=
+                        navItems.findIndex((nav) => nav.key === activeNav)
+                          ? "#F8FF99"
+                          : "#fff"
+                      }
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                      fill="none"
+                    />
+                  </svg>
+                )}
+                <span className="w-9 h-9 flex items-center justify-center rounded-xl transition-all duration-200 bg-[#302C2C]">
+                  {item.svg(activeNav === item.key)}
+                </span>
+                <span
+                  className={`text-base cursor-pointer font-light transition-all duration-200 ${
+                    activeNav === item.key ? "text-primary" : "text-white"
+                  }`}
+                >
+                  {item.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </nav>
+      {/*Agent list */}
+      <div className=" h-max pt-5">
         <button
           className="flex hover:cursor-pointer items-center gap-2 w-full mb-6 select-none"
-          onClick={() => setAgentsOpen((v) => !v)}
+          onClick={() => {
+            dispatch(setActiveMenu("Agents"));
+          }}
           aria-expanded={agentsOpen}
         >
           <h6 className="text-white text-sm font-semibold uppercase flex-1 text-left">
-            Your Agents
+            Agents
           </h6>
           <svg
             className={`transition-transform duration-200 w-4 h-4 ${
@@ -340,6 +399,64 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
             ))}
           </div>
         )}
+      </div>
+      {/* Footer */}
+      <div className="w-max h-max py-5 lg:hidden  gap-6 justify-center flex flex-col-reverse  items-start">
+        <p className="text-xs mb-6 bg-bg p-3 rounded-xl lg:mb-0">BUY FRAKTIA</p>
+        <div className="relative">
+          <div
+            className="flex text-[#232323] rounded-[4px] justify-center items-center gap-1 w-[171px] h-[36px] bg-primary hover:cursor-pointer transition-colors hover:bg-primary/90"
+            onClick={handleWalletClick}
+          >
+            <p className="text-sm">
+              {address
+                ? `${address.slice(0, 6)}...${address.slice(-6)}`
+                : "Connect Wallet"}
+            </p>
+            <svg
+              className={`transition-transform duration-200 w-4 h-4 ${
+                showWalletDropdown ? "rotate-90" : "rotate-0"
+              }`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </div>
+
+          {showWalletDropdown && (
+            <div className="absolute top-full mt-2 right-0 w-[171px] bg-bg border border-gray-600 rounded-[8px] shadow-lg z-50">
+              <div className="py-1">
+                {isConnected ? (
+                  <>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full px-4 py-2 text-left text-sm text-white hover:bg-gray-700 transition-colors rounded-[8px]"
+                    >
+                      Disconnect
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => {
+                      open();
+                      dispatch(setShowWalletDropdown(false));
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-white hover:bg-gray-700 transition-colors rounded-[8px]"
+                  >
+                    Connect Wallet
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );

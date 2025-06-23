@@ -216,8 +216,9 @@ export default function Home() {
               scale: 1.05,
               boxShadow: "0 10px 25px rgba(248, 255, 153, 0.3)",
             }}
+            onClick={() => open()}
             whileTap={{ scale: 0.95 }}
-            className="flex mt-10 lg:hidden text-base text-[#232323] h-[48px] rounded-[8px] justify-center items-center gap-1 w-full bg-primary btn-interactive font-medium"
+            className="flex mt-10 lg:hidden text-base text-[#232323] h-[48px] active:scale-90 duration-300 rounded-[8px] justify-center items-center gap-1 w-full bg-primary btn-interactive font-medium"
           >
             Connect Wallet
           </motion.button>

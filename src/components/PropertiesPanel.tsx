@@ -794,7 +794,7 @@ export function PropertiesPanel({
   return (
     <div className="h-full flex flex-col bg-dark">
       {/* Header */}
-      <div className="p-2 border-b border-primary flex items-center justify-between">
+      <div className="p-2 border- border-primary flex items-center justify-between">
         <button className={`font-medium`}>CONFIGURATION</button>
         <button
           onClick={onClose}

@@ -25,6 +25,8 @@ import { PropertiesPanel } from "./PropertiesPanel";
 import { characterConfigs } from "@/constants/characters";
 import { CharacterConfig } from "@/types/nodes";
 import Image from "next/image";
+import { useAppSelector } from "@/redux/hooks";
+import { selectActiveMenu } from "@/redux/slices/uiSlice";
 
 const nodeTypes = {
   framework: FrameworkNode,
@@ -268,6 +270,7 @@ const initialEdges: Edge[] = [];
 
 const flowStyles = {
   background: "linear-gradient(135deg, #191919 0%, #191919 100%)",
+  // height: "50%",
 };
 
 export interface AgentBuilderRef {
@@ -279,6 +282,7 @@ const AgentBuilder = forwardRef<AgentBuilderRef>((props, ref) => {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [showTestPanel] = useState(false);
+  const activeMenu = useAppSelector(selectActiveMenu);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -338,47 +342,47 @@ const AgentBuilder = forwardRef<AgentBuilderRef>((props, ref) => {
   );
 
   return (
-    <div
-      className=" w-full bg-bg p-5 rounded-tl-[20px] relative h-full"
-      style={{
-        paddingRight:
-          (selectedNode && !showTestPanel) || showTestPanel ? "320px" : "0",
-      }}
-    >
-      <div className="flex justify-between items-end">
+    <div className=" w-full flex  flex-col  bg-bg lg:px-5 pt-5 rounded-tl-[20px] relative h-full">
+      <div className="flex  mx-3 lg:mx-0  justify-between items-start">
         <div className="max-w-[260px] font-light flex flex-col gap-2">
-          <h4 className="text-white text-sm font-medium">Agent Builder</h4>
+          <div className="flex w-max h-max items-center gap-2">
+            <span className="text-base lg:text-2xl text-primary font-light">
+              {activeMenu}
+            </span>
+            <span className="w-2 h-2  animate-pulse   bg-primary rounded-full"></span>
+          </div>
+
           <p className="text-xs text-white/70">
-            <span className="font-medium">Drag, Drop</span> and{" "}
-            <span className="font-medium">Connect</span> components to build
-            your agent
+            <span className="font-medium">Select</span> components{" "}
+            <span className="font-medium">to</span> configure and build your
+            agent
           </p>
         </div>
         <div className="flex flex-col items-end gap-3.5">
-          <p className="text-white bg-dark text-xs w-[90px] h-[31px] rounded-[10px] flex justify-center items-center">
+          <p className="text-white relative z-50 top-12 right-0 lg:right-0 lg:top-0 bg-dark text-xs w-[90px] h-[31px] rounded-[10px] flex justify-center items-center">
             Step 1 of <span className="text-white/50 ml-1.5"> 5</span>
           </p>
-          <div className="flex items-center gap-3">
-            <button className="flex cursor-pointer hover:scale-95 duration-300 active:scale-100 w-[150px] h-[45px] border border-[#757575] rounded-[8px] justify-center items-center gap-2">
-              <Image src={"/icons/arr.svg"} alt="arr" width={24} height={24} />
-              <p className="text-[#757575]">Previous</p>
+          <div className="flex lg:relative z-50 absolute bottom-10 lg:bottom-0  items-center gap-3">
+            <button className="flex cursor-pointer hover:scale-95 duration-300 active:scale-100 w-[100px] h-[45px] border border-[#757575] rounded-[8px] justify-center items-center gap-1">
+              {/* <Image src={"/icons/arr.svg"} alt="arr" width={24} height={24} /> */}
+              <p className="text-xs text-[#757575]">Previous</p>
             </button>
-            <button className="flex cursor-pointer hover:scale-95 duration-300 active:scale-100 w-[150px] h-[45px] border border-[#1c1c1c] bg-white/70 rounded-[8px] justify-center items-center gap-2">
-              <p className="text-[#1c1c1c]">Next</p>
-              <Image
+            <button className=" flex cursor-pointer hover:scale-95 duration-300 active:scale-100 w-[100px] h-[45px] border border-[#1c1c1c] bg-white/70 rounded-[8px] justify-center items-center gap-1">
+              <p className="text-xs text-[#1c1c1c]">Next</p>
+              {/* <Image
                 src={"/icons/arr2.svg"}
                 // className="rotate-180"
                 alt="arr"
                 width={24}
                 height={24}
-              />
+              /> */}
             </button>
           </div>
         </div>
       </div>
       {/* Properties Panel or Test Panel */}
       {selectedNode && !showTestPanel && (
-        <div className="absolute right-0 z-40 w-80 h-full">
+        <div className="absolute right-0 top-0 z-50 w-80 h-full">
           <PropertiesPanel
             node={selectedNode}
             onUpdateNode={onUpdateNode}
@@ -387,34 +391,37 @@ const AgentBuilder = forwardRef<AgentBuilderRef>((props, ref) => {
           />
         </div>
       )}
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeClick={onNodeClick}
-        nodeTypes={nodeTypes}
-        style={flowStyles}
-        className="bg-gradient-to-br rounded-tl-[20px]  w-full from-gray-900 to-black"
-      >
-        <Controls
-          className="bg-black/80 border text-black border-gray-700 rounded-lg shadow-2xl"
-          showInteractive={!false}
-        />
-        <MiniMap
-          position="bottom-right"
-          className="bg-black/80 border  border-gray-700 rounded-lg shadow-2xl"
-          nodeColor="#39ff14"
-          maskColor="rgba(0, 0, 0, 0.9)"
-        />
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={20}
-          size={1}
-          color="#262626"
-        />
-      </ReactFlow>
+      <div className="flex-1  relative">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeClick={onNodeClick}
+          nodeTypes={nodeTypes}
+          style={flowStyles}
+          className="bg-gradient-to-br  h-full rounded-tl-[20px] w-full from-gray-900 to-black"
+        >
+          <Controls
+            className="bg-black/80 border rotate-90 text-black border-gray-700 rounded-lg shadow-2xl"
+            showInteractive={!false}
+          />
+
+          {/* <MiniMap
+            position="bottom-right"
+            className="bg-black/80 border w-32 h-32 border-gray-700 rounded-lg shadow-2xl"
+            nodeColor="#39ff14"
+            maskColor="rgba(0, 0, 0, 0.9)"
+          /> */}
+          <Background
+            variant={BackgroundVariant.Lines}
+            gap={150}
+            size={2}
+            color="#f8ff990d"
+          />
+        </ReactFlow>
+      </div>
     </div>
   );
 });

@@ -17,11 +17,11 @@ export default function Manage() {
   const router = useRouter();
   const agentBuilderRef = useRef<AgentBuilderRef | null>(null);
 
-  useEffect(() => {
-    if (!isConnected) {
-      router.push("/");
-    }
-  }, [isConnected, router]);
+  // useEffect(() => {
+  //   if (!isConnected) {
+  //     router.push("/");
+  //   }
+  // }, [isConnected, router]);
 
   const handleAddNode = useCallback(
     (nodeName: string, position?: { x: number; y: number }) => {
@@ -33,15 +33,15 @@ export default function Manage() {
   );
 
   // Don't render anything if not connected (will redirect)
-  if (!isConnected) {
-    return null;
-  }
+  // if (!isConnected) {
+  //   return null;
+  // }
 
   return (
-    <div className="flex  h-full flex-1 relative">
+    <div className="flex h-full flex-1 relative">
       {/* Framework selection */}
-      {showNodesPanel && <Nodes onAddNode={handleAddNode} />}
-      <div className="flex bg-dark flex-col flex-1 ">
+      {/* {showNodesPanel && <Nodes onAddNode={handleAddNode} />} */}
+      <div className="flex bg-bg  flex-col flex-1 ">
         <Header />
         {/* Agent Builder */}
         <AgentBuilder ref={agentBuilderRef} />

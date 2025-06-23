@@ -3,6 +3,7 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 interface UIState {
   showNodesPanel: boolean;
   showPropertiesPanel: boolean;
+  activeMenu: string;
   showSidebar: boolean;
   isLoading: boolean;
   activeNav: string | null;
@@ -25,6 +26,7 @@ interface UIState {
 
 const initialState: UIState = {
   showNodesPanel: true,
+  activeMenu: "Arena",
   showPropertiesPanel: false,
   showSidebar: true,
   isLoading: false,
@@ -48,6 +50,11 @@ const uiSlice = createSlice({
     // Active Navigation
     setActiveNav: (state, action: PayloadAction<string | null>) => {
       state.activeNav = action.payload;
+    },
+
+    // Active Menu
+    setActiveMenu: (state, action: PayloadAction<string>) => {
+      state.activeMenu = action.payload;
     },
 
     // Nodes Panel
@@ -174,11 +181,13 @@ export const {
   setPanelSize,
   resetPanels,
   setActiveNav,
+  setActiveMenu,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;
 
 // Selectors
+export const selectActiveMenu = (state: { ui: UIState }) => state.ui.activeMenu;
 export const selectShowNodesPanel = (state: { ui: UIState }) =>
   state.ui.showNodesPanel;
 export const selectShowPropertiesPanel = (state: { ui: UIState }) =>
