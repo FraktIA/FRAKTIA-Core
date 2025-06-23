@@ -2,93 +2,87 @@
 
 import React from "react";
 import { Handle, Position, NodeProps } from "@xyflow/react";
-import { Mic, CheckCircle, AlertCircle } from "lucide-react";
+import Image from "next/image";
 
 type VoiceNodeData = {
   label: string;
   voice: string;
-  language: string;
   configured: boolean;
-  speed?: number;
+  description?: string;
 };
 
 export function VoiceNode({
   data,
   selected,
 }: NodeProps & { data: VoiceNodeData }) {
-  // Use the label (which contains the actual voice service name) instead of generic voice
   const displayName = data.label || data.voice;
 
-  // Get voice service icon based on the label
   const getVoiceIcon = (name: string) => {
-    if (name.includes("ElevenLabs")) return "🎤";
-    if (name.includes("Whisper")) return "👂";
-    if (name.includes("Azure")) return "☁️";
-    if (name.includes("Google")) return "🔍";
-    return "🎙️";
+    if (name.includes("ElevenLabs"))
+      return "https://elevenlabs.io/images/favicon.png";
+    return "/icons/voice.min.svg";
   };
 
   return (
     <div
-      className={`relative bg-black border-2 ${
-        selected ? "border-lime-400 shadow-glow" : "border-gray-800"
-      } rounded-lg transition-all duration-300 hover:border-lime-400/50`}
+      className={`relative bg-dark border-2 ${
+        selected
+          ? "border-primary shadow-glow-primary"
+          : "border-gray-800 hover:border-primary/50"
+      } rounded-xl transition-all duration-300 w-[240px] shadow-lg`}
     >
-      <div className="p-4 min-w-[200px]">
+      <div className="p-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-lime-400 rounded-lg flex items-center justify-center">
-              <Mic className="w-4 h-4 text-black" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gray-900/50 rounded-lg flex items-center justify-center p-1 border border-gray-700">
+              <Image
+                src={getVoiceIcon(displayName)}
+                alt={`${displayName} icon`}
+                width={28}
+                height={28}
+                className="rounded"
+              />
             </div>
-            <span className="text-lg">{getVoiceIcon(displayName)}</span>
+            <div>
+              <h3 className="text-white font-bold text-sm tracking-wide">
+                {displayName}
+              </h3>
+              <p className="text-gray-400 text-xs font-mono">VOICE NODE</p>
+            </div>
           </div>
-          {data.configured ? (
-            <CheckCircle className="w-5 h-5 text-lime-400" />
-          ) : (
-            <AlertCircle className="w-5 h-5 text-yellow-400" />
-          )}
+          <div
+            className={`w-3 h-3 rounded-full ${
+              data.configured ? "bg-green-400" : "bg-yellow-400"
+            } shadow-md border-2 border-dark`}
+          />
         </div>
 
-        {/* Title */}
-        <h3 className="text-white font-bold text-sm mb-1 tracking-wide">
-          {displayName}
-        </h3>
-        <p className="text-gray-400 text-xs mb-3 font-mono">VOICE SERVICE</p>
+        {/* Description */}
+        <p className="text-gray-300 text-xs leading-relaxed mb-4 min-h-[30px]">
+          {data.description || "High-quality text-to-speech synthesis."}
+        </p>
 
-        {/* Voice Details */}
-        <div className="mb-3 p-2 bg-gray-900 rounded-lg border border-gray-800">
-          <div className="text-lime-400 text-xs font-bold tracking-wide uppercase mb-1">
-            Voice Model: {data.voice}
-          </div>
-          <div className="text-gray-400 text-xs">
-            Language: {data.language}
-            {data.speed && <span className="ml-2">• Speed: {data.speed}x</span>}
-          </div>
-        </div>
-
-        {/* Status */}
-        <div className="flex items-center space-x-2">
+        {/* Configuration Status */}
+        <div className="flex items-center space-x-2 text-xs font-mono text-gray-500">
           <div
             className={`w-2 h-2 rounded-full ${
-              data.configured ? "bg-lime-400" : "bg-yellow-400"
+              data.configured ? "bg-green-400" : "bg-yellow-400"
             }`}
-          ></div>
-          <span className="text-xs text-gray-300 font-medium tracking-wide">
-            {data.configured ? "VOICE READY" : "SETUP VOICE"}
-          </span>
+          />
+          <span>{data.configured ? "Configured" : "Needs Setup"}</span>
         </div>
 
         {/* Handles */}
         <Handle
           type="target"
           position={Position.Left}
-          className="w-3 h-3 bg-lime-400 border-2 border-black"
+          className="w-3 h-3 !bg-primary border-2 border-dark"
         />
         <Handle
           type="source"
           position={Position.Right}
-          className="w-3 h-3 bg-lime-400 border-2 border-black"
+          className="w-3 h-3 !bg-primary border-2 border-dark"
         />
       </div>
     </div>

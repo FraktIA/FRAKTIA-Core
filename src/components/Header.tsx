@@ -59,7 +59,7 @@ const Header = () => {
 
   return (
     <div
-      className={`bg-dark hidden lg:flex justify-end ${
+      className={`bg-dark  hidden lg:flex justify-end ${
         showNodesPanel ? "" : "rounded-tl-[20px]"
       }  ${
         showPropertiesPanel ? "rounded-br-[20px]" : "rounded-br-[0px]"

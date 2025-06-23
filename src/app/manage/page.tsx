@@ -7,15 +7,34 @@ import { useEffect, useState, useCallback, useRef } from "react";
 
 import AgentBuilder, { AgentBuilderRef } from "@/components/AgentBuilder";
 import { useAppSelector } from "@/redux/hooks";
-import { useAppKitAccount } from "@reown/appkit/react";
-import { useRouter } from "next/navigation";
+// import { useAppKitAccount } from "@reown/appkit/react";
+// import { useRouter } from "next/navigation";
 
 export default function Manage() {
   const [allowed, setAllowed] = useState(false);
-  const { isConnected } = useAppKitAccount();
+  const [currentNodes, setCurrentNodes] = useState<
+    Array<{ type?: string; data?: { label?: string } }>
+  >([]);
+  // const { isConnected } = useAppKitAccount();
   const { showNodesPanel } = useAppSelector((state) => state.ui);
-  const router = useRouter();
+  // const router = useRouter();
   const agentBuilderRef = useRef<AgentBuilderRef | null>(null);
+
+  // Function to update current nodes from AgentBuilder
+  const updateCurrentNodes = useCallback(() => {
+    if (agentBuilderRef.current) {
+      const nodes = agentBuilderRef.current.getCurrentNodes();
+      setCurrentNodes(
+        nodes.map((node) => ({ type: node.type, data: node.data }))
+      );
+    }
+  }, []);
+
+  // Update nodes periodically or when needed
+  useEffect(() => {
+    const interval = setInterval(updateCurrentNodes, 500); // Update every 500ms
+    return () => clearInterval(interval);
+  }, [updateCurrentNodes]);
 
   // useEffect(() => {
   //   if (!isConnected) {
@@ -40,7 +59,9 @@ export default function Manage() {
   return (
     <div className="flex h-full flex-1 relative">
       {/* Framework selection */}
-      {/* {showNodesPanel && <Nodes onAddNode={handleAddNode} />} */}
+      {showNodesPanel && (
+        <Nodes onAddNode={handleAddNode} currentReactFlowNodes={currentNodes} />
+      )}
       <div className="flex bg-bg  flex-col flex-1 ">
         <Header />
         {/* Agent Builder */}

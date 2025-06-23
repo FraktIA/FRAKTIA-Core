@@ -1,9 +1,22 @@
-import { useCallback, useState, forwardRef, useImperativeHandle } from "react";
+import {
+  useCallback,
+  useState,
+  forwardRef,
+  useImperativeHandle,
+  useEffect,
+} from "react";
+import {
+  nextStep,
+  previousStep,
+  selectAgentBuilderFlow,
+  setShowNodesPanel,
+  setNodesPanelCategory,
+} from "@/redux/slices/uiSlice";
 
 import {
   ReactFlow,
-  MiniMap,
-  Controls,
+  // MiniMap,
+  // Controls,
   Background,
   useNodesState,
   useEdgesState,
@@ -12,6 +25,9 @@ import {
   Edge,
   Node,
   BackgroundVariant,
+  useReactFlow,
+  Viewport,
+  ReactFlowProvider,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { FrameworkNode } from "./nodes/FrameworkNode";
@@ -25,8 +41,9 @@ import { PropertiesPanel } from "./PropertiesPanel";
 import { characterConfigs } from "@/constants/characters";
 import { CharacterConfig } from "@/types/nodes";
 import Image from "next/image";
-import { useAppSelector } from "@/redux/hooks";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { selectActiveMenu } from "@/redux/slices/uiSlice";
+import { useWindowSize } from "@/hooks/useWindowSize";
 
 const nodeTypes = {
   framework: FrameworkNode,
@@ -74,7 +91,7 @@ const getNodeType = (nodeName: string): string => {
     // Voice nodes
     Alloy: "voice",
     Echo: "voice",
-    ElevenLabs: "voice",
+    "Eleven Labs": "voice",
     "OpenAI Whisper": "voice",
     "Azure Speech": "voice",
     "Google Cloud Speech": "voice",
@@ -118,6 +135,22 @@ const getCharacterConfig = (nodeName: string): CharacterConfig | null => {
 
   return characterMap[nodeName] || null;
 };
+
+const defaultNodeForStep: { [key: string]: string } = {
+  Framework: "Eliza OS",
+  "AI Model": "Claude",
+  Voice: "Eleven Labs",
+  Character: "AI Assistant",
+  Plugins: "Twitter Client",
+};
+
+// const positionsByStep = [
+//   { x: 50, y: 250 }, // Framework
+//   { x: 450, y: 150 }, // AI Model
+//   { x: 100, y: 550 }, // Voice
+//   { x: 850, y: 150 }, // Character
+//   { x: 470, y: 659 }, // Plugins
+// ];
 
 // Helper function to get default node data
 const getDefaultNodeData = (nodeType: string, nodeName: string) => {
@@ -186,7 +219,7 @@ const getDefaultNodeData = (nodeType: string, nodeName: string) => {
       // Determine the provider and model based on the node name
       let provider: "openai" | "anthropic" | "google" | "meta" | "local" =
         "openai";
-      let model = "gpt-4-turbo-preview";
+      let model = "";
 
       if (nodeName.includes("Claude")) {
         provider = "anthropic";
@@ -253,18 +286,7 @@ const getDefaultNodeData = (nodeType: string, nodeName: string) => {
   }
 };
 
-const initialNodes: Node[] = [
-  {
-    id: "1",
-    type: "framework",
-    position: { x: 250, y: 100 },
-    data: {
-      label: "ElizaOS Framework",
-      framework: "elizaos",
-      configured: false,
-    },
-  },
-];
+const initialNodes: Node[] = [];
 
 const initialEdges: Edge[] = [];
 
@@ -275,44 +297,280 @@ const flowStyles = {
 
 export interface AgentBuilderRef {
   onAddNode: (nodeName: string, position?: { x: number; y: number }) => void;
+  fitViewToNodes: () => void;
+  resetToOptimalZoom: () => void;
+  getCurrentNodes: () => Node[]; // Add method to get current nodes
 }
 
-const AgentBuilder = forwardRef<AgentBuilderRef>((props, ref) => {
+// Internal component that uses the ReactFlow hook
+const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
+  const dispatch = useAppDispatch();
+  const agentBuilderFlow = useAppSelector(selectAgentBuilderFlow);
+  const { width, height } = useWindowSize();
+  const isMobile = width < 768; // Tailwind's md breakpoint
+
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [showTestPanel] = useState(false);
   const activeMenu = useAppSelector(selectActiveMenu);
 
+  // Add the useReactFlow hook
+  const reactFlow = useReactFlow();
+
+  const getPositionsByStep = useCallback(() => {
+    if (isMobile) {
+      return [
+        { x: 20, y: 10 }, // Framework - centered and higher
+        { x: 300, y: 10 }, // AI Model - stacked vertically
+        { x: 20, y: 200 }, // Voice - stacked vertically
+        { x: 150, y: 380 }, // Character - stacked vertically
+        { x: 20, y: 700 }, // Plugins - stacked vertically
+      ];
+    } else {
+      return [
+        { x: 0, y: 0 }, // Framework
+        { x: 450, y: 150 }, // AI Model
+        { x: 100, y: 550 }, // Voice
+        { x: 850, y: 150 }, // Character
+        { x: 470, y: 659 }, // Plugins
+      ];
+    }
+  }, [isMobile]);
+
+  // Function to manually fit the view to show all nodes
+  const fitViewToNodes = useCallback(() => {
+    if (reactFlow && nodes.length > 0) {
+      reactFlow.fitView({
+        padding: 0.1, // 10% padding around the content
+        minZoom: 0.1,
+        maxZoom: 0.7, // Limit maximum zoom for fit view (slightly higher)
+        duration: 800, // Smooth animation duration
+      });
+    }
+  }, [reactFlow, nodes.length]);
+
+  // Function to reset to optimal zoom
+  const resetToOptimalZoom = useCallback(() => {
+    if (reactFlow) {
+      const viewportWidth = width * 0.8;
+      const viewportHeight = height * 0.8;
+      const contentWidth = isMobile ? 300 : 1200;
+      const contentHeight = isMobile ? 800 : 700;
+
+      const optimalZoomX = viewportWidth / contentWidth;
+      const optimalZoomY = viewportHeight / contentHeight;
+      const optimalZoom = Math.min(optimalZoomX, optimalZoomY, 0.6); // Cap at 0.6x zoom (slightly higher)
+
+      const viewport: Viewport = {
+        x: isMobile ? 10 : 50,
+        y: isMobile ? 10 : 50,
+        zoom: Math.max(0.1, optimalZoom),
+      };
+
+      reactFlow.setViewport(viewport, { duration: 800 });
+    }
+  }, [reactFlow, width, height, isMobile]);
+
+  // Function to initialize and control the view
+  const initializeView = useCallback(() => {
+    if (reactFlow && nodes.length > 0) {
+      // Calculate optimal zoom based on viewport and content
+      const viewportWidth = width * 0.8; // Use 80% of available width
+      const viewportHeight = height * 0.8; // Use 80% of available height
+
+      // Estimate content bounds (you can adjust these based on your actual node layout)
+      const contentWidth = isMobile ? 300 : 1200;
+      const contentHeight = isMobile ? 800 : 700;
+
+      const optimalZoomX = viewportWidth / contentWidth;
+      const optimalZoomY = viewportHeight / contentHeight;
+      const optimalZoom = Math.min(optimalZoomX, optimalZoomY, 0.6); // Cap at 0.6x zoom (slightly higher)
+
+      // Set the viewport with calculated zoom
+      const viewport: Viewport = {
+        x: isMobile ? 10 : 50,
+        y: isMobile ? 10 : 50,
+        zoom: Math.max(0.1, optimalZoom), // Minimum zoom of 0.1
+      };
+
+      reactFlow.setViewport(viewport);
+    }
+  }, [reactFlow, nodes.length, width, height, isMobile]);
+
+  const handleNextStep = () => {
+    dispatch(nextStep());
+  };
+
+  const handlePreviousStep = () => {
+    // Get the node that was added for the current step
+    const currentStepName =
+      agentBuilderFlow.steps[agentBuilderFlow.currentStep - 1];
+    const nodeNameToRemove = defaultNodeForStep[currentStepName];
+
+    if (nodeNameToRemove) {
+      const nodeToRemove = nodes.find((n) => n.data.label === nodeNameToRemove);
+
+      if (nodeToRemove) {
+        // Remove the node and its connected edges
+        setNodes((nds) => nds.filter((node) => node.id !== nodeToRemove.id));
+        setEdges((eds) =>
+          eds.filter(
+            (edge) =>
+              edge.source !== nodeToRemove.id && edge.target !== nodeToRemove.id
+          )
+        );
+
+        // If the removed node was selected, deselect it
+        if (selectedNode?.id === nodeToRemove.id) {
+          setSelectedNode(null);
+        }
+      }
+    }
+
+    // Navigate to the previous step
+    dispatch(previousStep());
+  };
+
+  const isFirstStep = agentBuilderFlow.currentStep === 1;
+  const isLastStep =
+    agentBuilderFlow.currentStep === agentBuilderFlow.totalSteps;
+
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
   );
 
-  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    setSelectedNode(node);
-  }, []);
+  const onNodeClick = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      setSelectedNode(node);
+
+      // Map node types to their corresponding navigation categories
+      const nodeTypeToNavCategory: { [key: string]: string } = {
+        framework: "Framework",
+        model: "AI Model",
+        voice: "Voice",
+        character: "Character",
+        integration: "Plugins",
+        logic: "Plugins",
+        output: "Plugins",
+      };
+
+      // Always update the nodes panel category to show the clicked node's category
+      if (node.type && typeof node.type === "string") {
+        const navCategory = nodeTypeToNavCategory[node.type];
+        if (navCategory) {
+          dispatch(setNodesPanelCategory(navCategory));
+          dispatch(setShowNodesPanel(true));
+        }
+      }
+
+      // The activeNav (sidebar highlighting) remains unchanged
+      // This preserves step-based highlighting while allowing independent node panel navigation
+    },
+    [dispatch]
+  );
 
   const onAddNode = useCallback(
     (nodeName: string, position?: { x: number; y: number }) => {
       const nodeType = getNodeType(nodeName);
-      const newNode: Node = {
-        id: `${nodeType}-${Date.now()}`,
-        type: nodeType,
-        position: position || {
+
+      // Get the appropriate position based on node type
+      const getNodePosition = () => {
+        if (position) return position;
+
+        const positions = getPositionsByStep();
+        const nodeTypeToStepIndex: { [key: string]: number } = {
+          framework: 0, // Framework
+          model: 1, // AI Model
+          voice: 2, // Voice
+          character: 3, // Character
+          integration: 4, // Plugins
+          logic: 4, // Use plugins position for logic nodes
+          output: 4, // Use plugins position for output nodes
+        };
+
+        const stepIndex = nodeTypeToStepIndex[nodeType];
+
+        if (stepIndex !== undefined && positions[stepIndex]) {
+          return positions[stepIndex];
+        }
+
+        // Fallback to random position
+        return {
           x: Math.random() * 400 + 100,
           y: Math.random() * 400 + 100,
-        },
-        data: getDefaultNodeData(nodeType, nodeName),
+        };
       };
-      setNodes((nds) => [...nds, newNode]);
+
+      setNodes((nds) => {
+        // Check if a node of this type already exists
+        const existingNode = nds.find((node) => node.type === nodeType);
+
+        const newNode: Node = {
+          id: `${nodeType}-${Date.now()}`,
+          type: nodeType,
+          position: getNodePosition(),
+          data: getDefaultNodeData(nodeType, nodeName),
+        };
+
+        if (existingNode) {
+          // Replace the existing node
+          const updatedNodes = nds.map((node) =>
+            node.id === existingNode.id ? newNode : node
+          );
+
+          // Update edges to connect to the new node
+          setEdges((eds) =>
+            eds.map((edge) => {
+              if (edge.source === existingNode.id) {
+                return { ...edge, source: newNode.id };
+              }
+              if (edge.target === existingNode.id) {
+                return { ...edge, target: newNode.id };
+              }
+              return edge;
+            })
+          );
+
+          // If the replaced node was selected, update selection
+          setSelectedNode((currentSelected) =>
+            currentSelected?.id === existingNode.id ? newNode : currentSelected
+          );
+
+          return updatedNodes;
+        } else {
+          // Add new node
+          const updatedNodes = [...nds, newNode];
+
+          // Connect to framework node if it's not the framework itself
+          if (nodeType !== "framework") {
+            const frameworkNode = nds.find((n) => n.type === "framework");
+            if (frameworkNode) {
+              const newEdge: Edge = {
+                id: `e-${frameworkNode.id}-${newNode.id}`,
+                source: frameworkNode.id,
+                target: newNode.id,
+                type: "smoothstep",
+                animated: true,
+              };
+              setEdges((eds) => addEdge(newEdge, eds));
+            }
+          }
+
+          return updatedNodes;
+        }
+      });
     },
-    [setNodes]
+    [setNodes, setEdges, getPositionsByStep]
   );
 
-  // Expose onAddNode function to parent component
+  // Expose functions to parent component
   useImperativeHandle(ref, () => ({
     onAddNode,
+    fitViewToNodes,
+    resetToOptimalZoom,
+    getCurrentNodes: () => nodes, // Expose current nodes
   }));
 
   const onDeleteNode = useCallback(
@@ -341,6 +599,154 @@ const AgentBuilder = forwardRef<AgentBuilderRef>((props, ref) => {
     [setNodes]
   );
 
+  // Initialize view when nodes change or viewport size changes
+  useEffect(() => {
+    if (nodes.length > 0) {
+      // Use setTimeout to ensure DOM is updated
+      setTimeout(initializeView, 100);
+    }
+  }, [nodes.length, initializeView]);
+
+  // Also initialize view when viewport size changes
+  useEffect(() => {
+    if (nodes.length > 0) {
+      setTimeout(initializeView, 100);
+    }
+  }, [width, height, nodes.length, initializeView]);
+
+  useEffect(() => {
+    const currentStepName =
+      agentBuilderFlow.steps[agentBuilderFlow.currentStep - 1];
+    if (!currentStepName) return;
+
+    const nodeNameToAdd = defaultNodeForStep[currentStepName];
+    if (!nodeNameToAdd) return;
+
+    // When jumping to a step via sidebar, ensure all previous nodes are also present
+    setNodes((nds) => {
+      let updatedNodes = [...nds];
+
+      // Add all nodes from step 1 up to the current step
+      for (
+        let stepIndex = 0;
+        stepIndex < agentBuilderFlow.currentStep;
+        stepIndex++
+      ) {
+        const stepName = agentBuilderFlow.steps[stepIndex];
+        const nodeNameForStep = defaultNodeForStep[stepName];
+
+        if (nodeNameForStep) {
+          const nodeTypeForStep = getNodeType(nodeNameForStep);
+          const existingNode = updatedNodes.find(
+            (node) => node.type === nodeTypeForStep
+          );
+
+          // Add default node if none of this type exists
+          if (!existingNode) {
+            const positions = getPositionsByStep();
+            const position = positions[stepIndex];
+
+            const newNode: Node = {
+              id: `${nodeTypeForStep}-${Date.now()}-${stepIndex}`,
+              type: nodeTypeForStep,
+              position,
+              data: getDefaultNodeData(nodeTypeForStep, nodeNameForStep),
+            };
+
+            updatedNodes = [...updatedNodes, newNode];
+
+            // Connect to framework node if it's not the framework itself
+            if (nodeTypeForStep !== "framework") {
+              const frameworkNode = updatedNodes.find(
+                (n) => n.type === "framework"
+              );
+              if (frameworkNode) {
+                const newEdge: Edge = {
+                  id: `e-${frameworkNode.id}-${newNode.id}`,
+                  source: frameworkNode.id,
+                  target: newNode.id,
+                  type: "smoothstep",
+                  animated: true,
+                };
+                setEdges((eds) => addEdge(newEdge, eds));
+              }
+            }
+          }
+        }
+      }
+
+      return updatedNodes;
+    });
+  }, [
+    agentBuilderFlow.currentStep,
+    agentBuilderFlow.steps,
+    getPositionsByStep,
+    setNodes,
+    setEdges,
+  ]);
+
+  // Handle step changes from sidebar navigation - remove nodes above the selected step
+  useEffect(() => {
+    const currentStep = agentBuilderFlow.currentStep;
+    const totalSteps = agentBuilderFlow.totalSteps;
+
+    // Only remove nodes if we're going backwards (when someone clicks on an earlier step)
+    // Get all steps that should be removed (steps after the current step)
+    if (currentStep < totalSteps) {
+      const allSteps = agentBuilderFlow.steps; // Use the steps array for correct order
+      const currentStepIndex = currentStep - 1; // Convert to 0-based index
+
+      // Remove nodes for steps that are after the current step
+      setNodes((nds) => {
+        let updatedNodes = [...nds];
+        const nodesToRemove: string[] = [];
+
+        // Check each step after the current one
+        for (let i = currentStepIndex + 1; i < allSteps.length; i++) {
+          const stepName = allSteps[i];
+          const nodeNameToRemove = defaultNodeForStep[stepName];
+          if (nodeNameToRemove) {
+            const nodeTypeToRemove = getNodeType(nodeNameToRemove);
+            const existingNode = updatedNodes.find(
+              (n) => n.type === nodeTypeToRemove
+            );
+            if (existingNode) {
+              nodesToRemove.push(existingNode.id);
+              updatedNodes = updatedNodes.filter(
+                (node) => node.id !== existingNode.id
+              );
+
+              // If the removed node was selected, deselect it
+              if (selectedNode?.id === existingNode.id) {
+                setSelectedNode(null);
+              }
+            }
+          }
+        }
+
+        // Remove connected edges for all removed nodes
+        if (nodesToRemove.length > 0) {
+          setEdges((eds) =>
+            eds.filter(
+              (edge) =>
+                !nodesToRemove.includes(edge.source) &&
+                !nodesToRemove.includes(edge.target)
+            )
+          );
+        }
+
+        return updatedNodes;
+      });
+    }
+  }, [
+    agentBuilderFlow.currentStep,
+    agentBuilderFlow.totalSteps,
+    agentBuilderFlow.steps,
+    setNodes,
+    setEdges,
+    selectedNode,
+  ]);
+
   return (
     <div className=" w-full flex  flex-col  bg-bg lg:px-5 pt-5 rounded-tl-[20px] relative h-full">
       <div className="flex  mx-3 lg:mx-0  justify-between items-start">
@@ -360,22 +766,42 @@ const AgentBuilder = forwardRef<AgentBuilderRef>((props, ref) => {
         </div>
         <div className="flex flex-col items-end gap-3.5">
           <p className="text-white relative z-50 top-12 right-0 lg:right-0 lg:top-0 bg-dark text-xs w-[90px] h-[31px] rounded-[10px] flex justify-center items-center">
-            Step 1 of <span className="text-white/50 ml-1.5"> 5</span>
+            Step {agentBuilderFlow.currentStep} of{" "}
+            <span className="text-white/50 ml-1.5">
+              {" "}
+              {agentBuilderFlow.totalSteps}
+            </span>
           </p>
           <div className="flex lg:relative z-50 absolute bottom-10 lg:bottom-0  items-center gap-3">
-            <button className="flex cursor-pointer hover:scale-95 duration-300 active:scale-100 w-[100px] h-[45px] border border-[#757575] rounded-[8px] justify-center items-center gap-1">
+            <button
+              className={`flex cursor-pointer hover:scale-95 duration-300 active:scale-100 w-[100px] h-[45px] border border-[#757575] rounded-[8px] justify-center items-center gap-1 ${
+                isFirstStep ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+              onClick={handlePreviousStep}
+              disabled={isFirstStep}
+            >
               {/* <Image src={"/icons/arr.svg"} alt="arr" width={24} height={24} /> */}
               <p className="text-xs text-[#757575]">Previous</p>
             </button>
-            <button className=" flex cursor-pointer hover:scale-95 duration-300 active:scale-100 w-[100px] h-[45px] border border-[#1c1c1c] bg-white/70 rounded-[8px] justify-center items-center gap-1">
-              <p className="text-xs text-[#1c1c1c]">Next</p>
-              {/* <Image
-                src={"/icons/arr2.svg"}
-                // className="rotate-180"
-                alt="arr"
-                width={24}
-                height={24}
-              /> */}
+            <button
+              className={` flex cursor-pointer hover:scale-95 duration-300 active:scale-100 w-[100px] h-[45px] border border-[#1c1c1c] rounded-[8px] justify-center items-center gap-1 ${
+                isLastStep ? "bg-primary" : "bg-white/70 "
+              }`}
+              onClick={handleNextStep}
+              disabled={isLastStep}
+            >
+              <p className="text-xs text-[#1c1c1c]">
+                {isLastStep ? `Deploy` : "Next"}
+              </p>
+              {isLastStep && (
+                <Image
+                  src={"/icons/deploy.svg"}
+                  // className="rotate-180"
+                  alt="arr"
+                  width={24}
+                  height={24}
+                />
+              )}
             </button>
           </div>
         </div>
@@ -402,11 +828,27 @@ const AgentBuilder = forwardRef<AgentBuilderRef>((props, ref) => {
           nodeTypes={nodeTypes}
           style={flowStyles}
           className="bg-gradient-to-br  h-full rounded-tl-[20px] w-full from-gray-900 to-black"
+          // Disable zoom interactions to make it static
+          zoomOnScroll={false}
+          zoomOnPinch={false}
+          zoomOnDoubleClick={false}
+          // Disable panning to make it completely static
+          panOnDrag={false}
+          panOnScroll={false}
+          // Set zoom limits
+          minZoom={0.1}
+          maxZoom={1.0}
+          // Prevent viewport changes and scrolling interference
+          preventScrolling={true}
+          // Keep node selection enabled
+          elementsSelectable={true}
+          // Set initial viewport with slightly higher zoom for better visibility
+          defaultViewport={{ x: 50, y: 50, zoom: 0.25 }}
         >
-          <Controls
+          {/* <Controls
             className="bg-black/80 border rotate-90 text-black border-gray-700 rounded-lg shadow-2xl"
             showInteractive={!false}
-          />
+          /> */}
 
           {/* <MiniMap
             position="bottom-right"
@@ -423,6 +865,17 @@ const AgentBuilder = forwardRef<AgentBuilderRef>((props, ref) => {
         </ReactFlow>
       </div>
     </div>
+  );
+});
+
+AgentBuilderFlow.displayName = "AgentBuilderFlow";
+
+// Main component that provides ReactFlow context
+export const AgentBuilder = forwardRef<AgentBuilderRef>((props, ref) => {
+  return (
+    <ReactFlowProvider>
+      <AgentBuilderFlow ref={ref} {...props} />
+    </ReactFlowProvider>
   );
 });
 

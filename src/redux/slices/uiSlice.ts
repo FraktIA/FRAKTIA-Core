@@ -7,6 +7,7 @@ interface UIState {
   showSidebar: boolean;
   isLoading: boolean;
   activeNav: string | null;
+  nodesPanelCategory: string | null; // Separate state for Nodes panel content
   selectedNodeId: string | null;
   activeModal: string | null;
   showWalletDropdown: boolean;
@@ -22,6 +23,13 @@ interface UIState {
     propertiesPanel: number;
     sidebar: number;
   };
+  // Agent Builder Flow
+  agentBuilderFlow: {
+    currentStep: number;
+    totalSteps: number;
+    completedSteps: string[];
+    steps: string[];
+  };
 }
 
 const initialState: UIState = {
@@ -33,6 +41,7 @@ const initialState: UIState = {
   selectedNodeId: null,
   activeModal: null,
   activeNav: "Framework",
+  nodesPanelCategory: "Framework", // Initialize with Framework
   showWalletDropdown: false,
   notifications: [],
   theme: "dark",
@@ -40,6 +49,13 @@ const initialState: UIState = {
     nodesPanel: 300,
     propertiesPanel: 250,
     sidebar: 280,
+  },
+  // Agent Builder Flow
+  agentBuilderFlow: {
+    currentStep: 1,
+    totalSteps: 5,
+    completedSteps: [],
+    steps: ["Framework", "AI Model", "Voice", "Character", "Plugins"],
   },
 };
 
@@ -50,6 +66,11 @@ const uiSlice = createSlice({
     // Active Navigation
     setActiveNav: (state, action: PayloadAction<string | null>) => {
       state.activeNav = action.payload;
+    },
+
+    // Nodes Panel Category (separate from activeNav)
+    setNodesPanelCategory: (state, action: PayloadAction<string | null>) => {
+      state.nodesPanelCategory = action.payload;
     },
 
     // Active Menu
@@ -157,6 +178,71 @@ const uiSlice = createSlice({
       state.showSidebar = true;
       state.panelSizes = initialState.panelSizes;
     },
+
+    // Agent Builder Flow
+    nextStep: (state) => {
+      if (
+        state.agentBuilderFlow.currentStep < state.agentBuilderFlow.totalSteps
+      ) {
+        const currentStepName =
+          state.agentBuilderFlow.steps[state.agentBuilderFlow.currentStep - 1];
+        if (!state.agentBuilderFlow.completedSteps.includes(currentStepName)) {
+          state.agentBuilderFlow.completedSteps.push(currentStepName);
+        }
+        state.agentBuilderFlow.currentStep += 1;
+        const nextStepName =
+          state.agentBuilderFlow.steps[state.agentBuilderFlow.currentStep - 1];
+        state.activeNav = nextStepName;
+        state.nodesPanelCategory = nextStepName; // Also update nodes panel category
+      }
+    },
+    previousStep: (state) => {
+      if (state.agentBuilderFlow.currentStep > 1) {
+        state.agentBuilderFlow.currentStep -= 1;
+        const prevStepName =
+          state.agentBuilderFlow.steps[state.agentBuilderFlow.currentStep - 1];
+        state.activeNav = prevStepName;
+        state.nodesPanelCategory = prevStepName; // Also update nodes panel category
+        // On going back, pop the last completed step to un-highlight it
+        state.agentBuilderFlow.completedSteps.pop();
+      }
+    },
+    goToStep: (state, action: PayloadAction<number>) => {
+      const stepNumber = action.payload;
+      if (stepNumber >= 1 && stepNumber <= state.agentBuilderFlow.totalSteps) {
+        state.agentBuilderFlow.currentStep = stepNumber;
+        const stepName = state.agentBuilderFlow.steps[stepNumber - 1];
+        state.activeNav = stepName;
+        state.nodesPanelCategory = stepName; // Also update nodes panel category
+
+        // Mark all previous steps as completed when jumping to a step
+        state.agentBuilderFlow.completedSteps = [];
+        for (let i = 0; i < stepNumber - 1; i++) {
+          const stepName = state.agentBuilderFlow.steps[i];
+          if (
+            stepName &&
+            !state.agentBuilderFlow.completedSteps.includes(stepName)
+          ) {
+            state.agentBuilderFlow.completedSteps.push(stepName);
+          }
+        }
+      }
+    },
+    completeStep: (state, action: PayloadAction<string>) => {
+      const stepName = action.payload;
+      if (!state.agentBuilderFlow.completedSteps.includes(stepName)) {
+        state.agentBuilderFlow.completedSteps.push(stepName);
+      }
+    },
+    resetAgentBuilderFlow: (state) => {
+      state.agentBuilderFlow = initialState.agentBuilderFlow;
+      state.activeNav = state.agentBuilderFlow.steps[0];
+      state.nodesPanelCategory = state.agentBuilderFlow.steps[0]; // Also reset nodes panel category
+    },
+    setAgentBuilderSteps: (state, action: PayloadAction<string[]>) => {
+      state.agentBuilderFlow.steps = action.payload;
+      state.agentBuilderFlow.totalSteps = action.payload.length;
+    },
   },
 });
 
@@ -181,7 +267,14 @@ export const {
   setPanelSize,
   resetPanels,
   setActiveNav,
+  setNodesPanelCategory,
   setActiveMenu,
+  nextStep,
+  previousStep,
+  goToStep,
+  completeStep,
+  resetAgentBuilderFlow,
+  setAgentBuilderSteps,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;
@@ -206,3 +299,7 @@ export const selectNotifications = (state: { ui: UIState }) =>
 export const selectTheme = (state: { ui: UIState }) => state.ui.theme;
 export const selectPanelSizes = (state: { ui: UIState }) => state.ui.panelSizes;
 export const selectActiveNav = (state: { ui: UIState }) => state.ui.activeNav;
+export const selectNodesPanelCategory = (state: { ui: UIState }) =>
+  state.ui.nodesPanelCategory;
+export const selectAgentBuilderFlow = (state: { ui: UIState }) =>
+  state.ui.agentBuilderFlow;

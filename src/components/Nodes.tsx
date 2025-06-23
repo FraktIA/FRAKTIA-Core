@@ -2,13 +2,17 @@ import Image from "next/image";
 import React from "react";
 import { X } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { selectActiveNav, setShowNodesPanel } from "@/redux/slices/uiSlice";
+import {
+  selectNodesPanelCategory,
+  setShowNodesPanel,
+} from "@/redux/slices/uiSlice";
 import { characterConfigs } from "@/constants/characters";
 import { CharacterConfig } from "@/types/nodes";
 
 interface NodePanelProps {
   onAddNode?: (nodeType: string, position?: { x: number; y: number }) => void;
   onOpenTemplates?: () => void;
+  currentReactFlowNodes?: Array<{ type?: string; data?: { label?: string } }>; // Add current nodes from ReactFlow
 }
 
 // Define node structure with character support
@@ -93,37 +97,37 @@ const nodeData: Record<string, NodeItem[]> = {
   ],
   Voice: [
     {
-      name: "ElevenLabs",
+      name: "Eleven Labs",
       description:
         "Premium AI voice synthesis with natural intonation and emotion for realistic speech generation",
       highlight: true,
       icon: "/icons/voice.svg",
       type: "Voice" as const,
     },
-    {
-      name: "OpenAI Whisper",
-      description:
-        "Robust speech recognition system with multilingual support and high accuracy transcription",
-      highlight: false,
-      icon: "/icons/voice.svg",
-      type: "Voice" as const,
-    },
-    {
-      name: "Azure Speech",
-      description:
-        "Microsoft's cloud-based speech services with real-time transcription and text-to-speech capabilities",
-      highlight: false,
-      icon: "/icons/voice.svg",
-      type: "Voice" as const,
-    },
-    {
-      name: "Google Cloud Speech",
-      description:
-        "Advanced speech recognition and synthesis with support for 125+ languages and variants",
-      highlight: false,
-      icon: "/icons/voice.svg",
-      type: "Voice" as const,
-    },
+    // {
+    //   name: "OpenAI Whisper",
+    //   description:
+    //     "Robust speech recognition system with multilingual support and high accuracy transcription",
+    //   highlight: false,
+    //   icon: "/icons/voice.svg",
+    //   type: "Voice" as const,
+    // },
+    // {
+    //   name: "Azure Speech",
+    //   description:
+    //     "Microsoft's cloud-based speech services with real-time transcription and text-to-speech capabilities",
+    //   highlight: false,
+    //   icon: "/icons/voice.svg",
+    //   type: "Voice" as const,
+    // },
+    // {
+    //   name: "Google Cloud Speech",
+    //   description:
+    //     "Advanced speech recognition and synthesis with support for 125+ languages and variants",
+    //   highlight: false,
+    //   icon: "/icons/voice.svg",
+    //   type: "Voice" as const,
+    // },
   ],
   Character: [
     {
@@ -217,20 +221,32 @@ const nodeData: Record<string, NodeItem[]> = {
   ],
 };
 
-const Nodes = ({ onAddNode }: NodePanelProps) => {
+const Nodes = ({ onAddNode, currentReactFlowNodes }: NodePanelProps) => {
   const dispatch = useAppDispatch();
-  const activeNav = useAppSelector(selectActiveNav);
+  const nodesPanelCategory = useAppSelector(selectNodesPanelCategory);
 
-  // Get the current nodes based on active navigation
-  const currentNodes: NodeItem[] =
-    nodeData[activeNav as keyof typeof nodeData] || [];
+  // Helper function to check if a node is currently selected/active in ReactFlow
+  const isNodeActiveInBoard = (nodeName: string): boolean => {
+    if (!currentReactFlowNodes) return false;
+    return currentReactFlowNodes.some(
+      (rfNode) => rfNode.data?.label === nodeName
+    );
+  };
+
+  // Get the current nodes based on nodes panel category with dynamic highlighting
+  const currentNodes: NodeItem[] = (
+    nodeData[nodesPanelCategory as keyof typeof nodeData] || []
+  ).map((node) => ({
+    ...node,
+    highlight: isNodeActiveInBoard(node.name), // Dynamic highlighting based on ReactFlow board
+  }));
 
   return (
     <section className="min-w-[26%] rounded-tl-[20px]  bg-dark  pl-5 h-[100%]   flex flex-col">
       <div className="flex  py-5  flex-col gap-1">
-        <h1 className="text-[20px] text-white">{activeNav}</h1>
+        <h1 className="text-[20px] text-white">{nodesPanelCategory}</h1>
         <p className="text-white/70 text-xs font-light">
-          {`Select Your preferred ${activeNav?.toLowerCase()} `}
+          {`Select Your preferred ${nodesPanelCategory?.toLowerCase()} `}
         </p>
       </div>
       <div className="flex relative scrollbar-hide overflow-y-scroll pt-10 pb-10  flex-col gap-6">
@@ -248,9 +264,7 @@ const Nodes = ({ onAddNode }: NodePanelProps) => {
                 ? "border-[#F8FF99]"
                 : "border-transparent ring-[0px] ring-inset ring-white/8"
             } bg-bg w-[270px] h-[196px] p-5  flex flex-col gap-4 shadow-lg hover:border-[#F8FF99]/50 transition-all duration-200`}
-            onClick={() =>
-              onAddNode && onAddNode(node.name, { x: 100, y: 100 })
-            }
+            onClick={() => onAddNode && onAddNode(node.name)}
             title={
               node.character
                 ? `Character: ${node.character.bio.join(" ")}`
@@ -309,7 +323,7 @@ const Nodes = ({ onAddNode }: NodePanelProps) => {
         {currentNodes.length === 0 && (
           <div className="flex flex-col items-center justify-center h-64 text-white/50">
             <p className="text-lg mb-2">
-              No {activeNav?.toLowerCase()} available
+              No {nodesPanelCategory?.toLowerCase()} available
             </p>
             <p className="text-sm">Check back later for more options</p>
           </div>
