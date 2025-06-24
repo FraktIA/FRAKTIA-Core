@@ -41,7 +41,6 @@ export function ModelNode({
             <div className="w-8 h-8 bg-lime-400 rounded-lg flex items-center justify-center">
               <Brain className="w-4 h-4 text-black" />
             </div>
-            <span className="text-lg">{info.icon}</span>
           </div>
           {data.configured ? (
             <CheckCircle className="w-5 h-5 text-lime-400" />

@@ -1,6 +1,6 @@
 "use client";
 import Header from "@/components/Header";
-import Nodes from "@/components/Nodes";
+import Nodes from "@/components/NodesPanel";
 import Modal from "@/components/Modal";
 import NoAccessComponent from "@/components/NoAccessComponent";
 import { useEffect, useState, useCallback, useRef } from "react";

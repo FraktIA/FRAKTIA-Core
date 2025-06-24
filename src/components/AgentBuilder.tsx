@@ -33,24 +33,26 @@ import "@xyflow/react/dist/style.css";
 import { FrameworkNode } from "./nodes/FrameworkNode";
 import { ModelNode } from "./nodes/ModelNode";
 import { VoiceNode } from "./nodes/VoiceNode";
-import { IntegrationNode } from "./nodes/IntegrationNode";
+import { PluginNode } from "./nodes/PluginNode";
 import { LogicNode } from "./nodes/LogicNode";
 import { OutputNode } from "./nodes/OutputNode";
 import { CharacterNode } from "./nodes/CharacterNode";
-import { PropertiesPanel } from "./PropertiesPanel";
 import { characterConfigs } from "@/constants/characters";
 import { CharacterConfig } from "@/types/nodes";
 import Image from "next/image";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { selectActiveMenu } from "@/redux/slices/uiSlice";
+import { selectNodesForAPI } from "@/redux/slices/selectedNodesSlice";
+import { deployAgentAction } from "@/actions/deploy";
 import { useWindowSize } from "@/hooks/useWindowSize";
+import { useAgentBuilderSync } from "@/hooks/useNodesSync";
 
 const nodeTypes = {
   framework: FrameworkNode,
   character: CharacterNode,
   model: ModelNode,
   voice: VoiceNode,
-  integration: IntegrationNode,
+  plugin: PluginNode,
   logic: LogicNode,
   output: OutputNode,
 };
@@ -74,20 +76,10 @@ const getNodeType = (nodeName: string): string => {
     "Casey Black": "character",
 
     // Model nodes
-    "GPT-4 Turbo": "model",
     Claude: "model",
     DeepSeek: "model",
     Gemini: "model",
     OpenAI: "model",
-    "Claude 3 Opus": "model",
-    "Gemini Pro": "model",
-    "GPT-4": "model",
-    "GPT-3.5 Turbo": "model",
-    "Claude 3 Sonnet": "model",
-    "Claude 3 Haiku": "model",
-    "Gemini Ultra": "model",
-    "Llama 2 70B": "model",
-    "Mistral 7B": "model",
 
     // Voice nodes
     Alloy: "voice",
@@ -101,11 +93,11 @@ const getNodeType = (nodeName: string): string => {
     Nova: "voice",
     Shimmer: "voice",
 
-    // Integration nodes
-    "Twitter Client": "integration",
-    "Database Connector": "integration",
-    "API Gateway": "integration",
-    "Analytics Dashboard": "integration",
+    // Plugin nodes
+    Twitter: "plugin",
+    "Database Connector": "plugin",
+    "API Gateway": "plugin",
+    "Analytics Dashboard": "plugin",
 
     // Logic nodes
     "If/Then": "logic",
@@ -142,16 +134,8 @@ const defaultNodeForStep: { [key: string]: string } = {
   "AI Model": "Claude",
   Voice: "Eleven Labs",
   Character: "AI Assistant",
-  Plugins: "Twitter Client",
+  Plugins: "Twitter",
 };
-
-// const positionsByStep = [
-//   { x: 50, y: 250 }, // Framework
-//   { x: 450, y: 150 }, // AI Model
-//   { x: 100, y: 550 }, // Voice
-//   { x: 850, y: 150 }, // Character
-//   { x: 470, y: 659 }, // Plugins
-// ];
 
 // Helper function to get default node data
 const getDefaultNodeData = (nodeType: string, nodeName: string) => {
@@ -261,11 +245,36 @@ const getDefaultNodeData = (nodeType: string, nodeName: string) => {
         language: "en",
         speed: 1.0,
       };
-    case "integration":
+    case "plugin":
       return {
         ...baseData,
         service: nodeName,
         endpoint: "",
+        // Twitter plugin defaults
+        twitterDryRun: false,
+        twitterTargetUsers: "",
+        twitterRetryLimit: 5,
+        twitterPollInterval: 120,
+        twitterPostEnable: false,
+        twitterPostIntervalMin: 90,
+        twitterPostIntervalMax: 180,
+        twitterPostImmediately: false,
+        twitterPostIntervalVariance: 0.2,
+        twitterSearchEnable: true,
+        twitterInteractionIntervalMin: 15,
+        twitterInteractionIntervalMax: 30,
+        twitterInteractionIntervalVariance: 0.3,
+        twitterAutoRespondMentions: true,
+        twitterAutoRespondReplies: true,
+        twitterMaxInteractionsPerRun: 10,
+        twitterTimelineAlgorithm: "weighted",
+        twitterTimelineUserBasedWeight: 3,
+        twitterTimelineTimeBasedWeight: 2,
+        twitterTimelineRelevanceWeight: 5,
+        twitterMaxTweetLength: 4000,
+        twitterDmOnly: false,
+        twitterEnableActionProcessing: false,
+        twitterActionInterval: 240,
       };
     case "logic":
       return {
@@ -298,6 +307,41 @@ export interface AgentBuilderRef {
   fitViewToNodes: () => void;
   resetToOptimalZoom: () => void;
   getCurrentNodes: () => Node[]; // Add method to get current nodes
+  getSelectedNode: () => Node | null;
+  onUpdateNode: (nodeId: string, data: Record<string, unknown>) => void;
+  onDeleteNode: (nodeId: string) => void;
+  clearSelectedNode: () => void;
+  getAPIData: () => {
+    allNodes: Array<{
+      type?: string;
+      data: Record<string, unknown>;
+    }>;
+    selectedNodes: Array<{
+      type?: string;
+      data: Record<string, unknown>;
+    }>;
+    selectedNode: {
+      type?: string;
+      data: Record<string, unknown>;
+    } | null;
+    totalNodes: number;
+    selectedCount: number;
+    lastUpdated: string | null;
+    workflow: {
+      nodes: Array<{
+        type?: string;
+        data: Record<string, unknown>;
+      }>;
+      selectedNode: {
+        type?: string;
+        data: Record<string, unknown>;
+      } | null;
+      metadata: {
+        totalNodes: number;
+        lastUpdated: string | null;
+      };
+    };
+  };
 }
 
 // Internal component that uses the ReactFlow hook
@@ -310,11 +354,33 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-  const [showTestPanel] = useState(false);
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [deploymentMessage, setDeploymentMessage] = useState<string | null>(
+    null
+  );
   const activeMenu = useAppSelector(selectActiveMenu);
+  const apiNodesData = useAppSelector(selectNodesForAPI);
 
   // Add the useReactFlow hook
   const reactFlow = useReactFlow();
+
+  // Initialize Redux sync
+  const {
+    handleNodesChange: syncNodesChange,
+    handleSelectionChange: syncSelectionChange,
+    handleNodeUpdate: syncNodeUpdate,
+    prepareForAPISubmission,
+  } = useAgentBuilderSync();
+
+  // Sync nodes to Redux whenever they change
+  useEffect(() => {
+    syncNodesChange(nodes);
+  }, [nodes, syncNodesChange]);
+
+  // Sync selected node to Redux whenever it changes
+  useEffect(() => {
+    syncSelectionChange({ nodes: selectedNode ? [selectedNode] : [] });
+  }, [selectedNode, syncSelectionChange]);
 
   const getPositionsByStep = useCallback(() => {
     if (isMobile) {
@@ -396,8 +462,67 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
     }
   }, [reactFlow, nodes.length, width, height, isMobile]);
 
+  // Handle deployment to MongoDB
+  const handleDeploy = async () => {
+    setIsDeploying(true);
+    setDeploymentMessage(null);
+
+    try {
+      console.log("Deploying agent with nodes:", apiNodesData.allNodes);
+      
+      // Debug: Log each node's data
+      apiNodesData.allNodes.forEach((node, index) => {
+        console.log(`Node ${index} (${node.type}):`, node.data);
+      });
+
+      const result = await deployAgentAction(
+        apiNodesData.allNodes,
+        `Agent_${Date.now()}`, // You can add a more sophisticated naming scheme
+        "AI Agent created with node builder"
+      );
+
+      if (result.success) {
+        setDeploymentMessage(
+          `✅ Agent deployed successfully! ID: ${result.agentId}`
+        );
+        console.log("Deployment successful:", result);
+      } else {
+        setDeploymentMessage(`❌ Deployment failed: ${result.error}`);
+        console.error("Deployment failed:", result.error);
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      setDeploymentMessage(`❌ Deployment error: ${errorMessage}`);
+      console.error("Deployment error:", error);
+    } finally {
+      setIsDeploying(false);
+    }
+  };
+
   const handleNextStep = () => {
+    // Check if this is the last step and we should deploy
+    const isAtLastStep =
+      agentBuilderFlow.currentStep === agentBuilderFlow.totalSteps;
+
+    if (isAtLastStep) {
+      // Deploy the agent instead of going to next step
+      handleDeploy();
+      return;
+    }
+
+    // Calculate the next step before dispatching
+    const newCurrentStep = agentBuilderFlow.currentStep + 1;
+
+    console.log(
+      "Next step - Current step:",
+      agentBuilderFlow.currentStep,
+      "New step:",
+      newCurrentStep
+    );
+
     dispatch(nextStep());
+    // Node selection will be handled by useEffect
   };
 
   const handlePreviousStep = () => {
@@ -428,6 +553,7 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
 
     // Navigate to the previous step
     dispatch(previousStep());
+    // Node selection will be handled by useEffect
   };
 
   const isFirstStep = agentBuilderFlow.currentStep === 1;
@@ -441,6 +567,14 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
 
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
+      // Update nodes to reflect selection state
+      setNodes((nds) =>
+        nds.map((n) => ({
+          ...n,
+          selected: n.id === node.id,
+        }))
+      );
+
       setSelectedNode(node);
 
       // Map node types to their corresponding navigation categories
@@ -449,7 +583,7 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
         model: "AI Model",
         voice: "Voice",
         character: "Character",
-        integration: "Plugins",
+        plugin: "Plugins",
         logic: "Plugins",
         output: "Plugins",
       };
@@ -466,7 +600,7 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
       // The activeNav (sidebar highlighting) remains unchanged
       // This preserves step-based highlighting while allowing independent node panel navigation
     },
-    [dispatch]
+    [dispatch, setNodes]
   );
 
   const onAddNode = useCallback(
@@ -483,7 +617,7 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
           model: 1, // AI Model
           voice: 2, // Voice
           character: 3, // Character
-          integration: 4, // Plugins
+          plugin: 4, // Plugins
           logic: 4, // Use plugins position for logic nodes
           output: 4, // Use plugins position for output nodes
         };
@@ -569,6 +703,11 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
     fitViewToNodes,
     resetToOptimalZoom,
     getCurrentNodes: () => nodes, // Expose current nodes
+    getSelectedNode: () => selectedNode,
+    onUpdateNode,
+    onDeleteNode,
+    clearSelectedNode: () => setSelectedNode(null),
+    getAPIData: prepareForAPISubmission, // Expose API data preparation
   }));
 
   const onDeleteNode = useCallback(
@@ -593,6 +732,28 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
             : node
         )
       );
+
+      // Sync the node update to Redux
+      syncNodeUpdate(nodeId, data);
+    },
+    [setNodes, syncNodeUpdate]
+  );
+
+  const onSelectionChange = useCallback(
+    ({ nodes: selectedNodes }: { nodes: Node[] }) => {
+      // If a node is selected in ReactFlow, update our selectedNode state
+      if (selectedNodes.length > 0) {
+        setSelectedNode(selectedNodes[0]);
+      } else {
+        setSelectedNode(null);
+        // Clear selection from all nodes
+        setNodes((nds) =>
+          nds.map((n) => ({
+            ...n,
+            selected: false,
+          }))
+        );
+      }
     },
     [setNodes]
   );
@@ -675,12 +836,45 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
 
       return updatedNodes;
     });
+
+    // Auto-select the node for the current step after nodes are updated
+    setTimeout(() => {
+      const nodeNameToSelect = defaultNodeForStep[currentStepName];
+      if (nodeNameToSelect) {
+        setNodes((nds) => {
+          const nodeToSelect = nds.find(
+            (n) => n.data.label === nodeNameToSelect
+          );
+
+          if (nodeToSelect) {
+            console.log(
+              "Auto-selecting node:",
+              nodeToSelect.data.label,
+              "for step:",
+              currentStepName
+            );
+
+            // Update selection state
+            const updatedNodes = nds.map((n) => ({
+              ...n,
+              selected: n.id === nodeToSelect.id,
+            }));
+
+            setSelectedNode(nodeToSelect);
+            return updatedNodes;
+          }
+
+          return nds;
+        });
+      }
+    }, 50); // Small delay to ensure nodes are fully updated
   }, [
     agentBuilderFlow.currentStep,
     agentBuilderFlow.steps,
     getPositionsByStep,
     setNodes,
     setEdges,
+    setSelectedNode,
   ]);
 
   // Handle step changes from sidebar navigation - remove nodes above the selected step
@@ -784,18 +978,21 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
             <button
               className={` flex cursor-pointer hover:scale-95 duration-300 active:scale-100 w-[100px] h-[45px] border border-[#1c1c1c] rounded-[8px] justify-center items-center gap-1 ${
                 isLastStep ? "bg-primary" : "bg-white/70 "
-              }`}
+              } ${isDeploying ? "opacity-50 cursor-not-allowed" : ""}`}
               onClick={handleNextStep}
-              disabled={isLastStep}
+              disabled={isLastStep && isDeploying}
             >
               <p className="text-xs text-[#1c1c1c]">
-                {isLastStep ? `Deploy` : "Next"}
+                {isLastStep
+                  ? isDeploying
+                    ? "Deploying..."
+                    : "Deploy"
+                  : "Next"}
               </p>
-              {isLastStep && (
+              {isLastStep && !isDeploying && (
                 <Image
                   src={"/icons/deploy.svg"}
-                  // className="rotate-180"
-                  alt="arr"
+                  alt="deploy"
                   width={24}
                   height={24}
                 />
@@ -804,17 +1001,6 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
           </div>
         </div>
       </div>
-      {/* Properties Panel or Test Panel */}
-      {selectedNode && !showTestPanel && (
-        <div className="absolute right-0 top-0 z-50 w-80 h-full">
-          <PropertiesPanel
-            node={selectedNode}
-            onUpdateNode={onUpdateNode}
-            onDeleteNode={onDeleteNode}
-            onClose={() => setSelectedNode(null)}
-          />
-        </div>
-      )}
       <div className="flex-1  relative">
         <ReactFlow
           nodes={nodes}
@@ -823,6 +1009,17 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
+          onSelectionChange={onSelectionChange}
+          onPaneClick={() => {
+            // Clear selection when clicking on empty space
+            setNodes((nds) =>
+              nds.map((n) => ({
+                ...n,
+                selected: false,
+              }))
+            );
+            setSelectedNode(null);
+          }}
           nodeTypes={nodeTypes}
           style={flowStyles}
           className="bg-gradient-to-br  h-full rounded-tl-[20px] w-full from-gray-900 to-black"
@@ -861,6 +1058,12 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
             color="#f8ff990d"
           />
         </ReactFlow>
+        {/* Deployment message display */}
+        {deploymentMessage && (
+          <div className="absolute top-4 right-4 bg-black/90 border border-gray-700 rounded-lg p-3 max-w-sm z-50">
+            <p className="text-sm text-white">{deploymentMessage}</p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,20 +1,69 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
+import { ChevronDown, ChevronUp, Brain, Settings, Key } from "lucide-react";
+import { Checkmark } from "../../../components/Checkmark";
+import { ModelNodeData } from "@/types/nodeData";
 
 interface ModelConfigFormProps {
-  localNodeData: any;
-  handleInputChange: (field: string, value: any) => void;
-  setLocalNodeData: (updater: (prev: any) => any) => void;
-  onUpdateNode: (nodeId: string, data: any) => void;
+  localNodeData: ModelNodeData;
+  handleInputChange: (field: string, value: string | number) => void;
+  setLocalNodeData: (updater: (prev: ModelNodeData) => ModelNodeData) => void;
+  onUpdateNode: (nodeId: string, data: ModelNodeData) => void;
   nodeId: string;
 }
 
 const ModelConfigForm: React.FC<ModelConfigFormProps> = ({
   localNodeData,
   handleInputChange,
-  setLocalNodeData,
-  onUpdateNode,
-  nodeId,
 }) => {
+  const [expandedSections, setExpandedSections] = useState({
+    model: true,
+    auth: false,
+    settings: false,
+  });
+
+  const toggleSection = useCallback((section: string) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section as keyof typeof prev]: !prev[section as keyof typeof prev],
+    }));
+  }, []);
+
+  const SectionHeader = useCallback(
+    ({
+      title,
+      icon: Icon,
+      section,
+    }: {
+      title: string;
+      icon: React.ComponentType<{ size?: number; className?: string }>;
+      section: string;
+    }) => (
+      <div
+        className="flex items-center justify-between cursor-pointer group"
+        onClick={() => toggleSection(section)}
+      >
+        <div className="flex items-center gap-2">
+          <Icon size={16} className="text-primary" />
+          <h3 className="text-sm font-semibold text-white tracking-wide">
+            {title}
+          </h3>
+        </div>
+        {expandedSections[section as keyof typeof expandedSections] ? (
+          <ChevronUp
+            size={16}
+            className="text-white/50 group-hover:text-white/70 transition-colors"
+          />
+        ) : (
+          <ChevronDown
+            size={16}
+            className="text-white/50 group-hover:text-white/70 transition-colors"
+          />
+        )}
+      </div>
+    ),
+    [expandedSections, toggleSection]
+  );
+
   const getModelOptions = () => {
     switch (localNodeData.provider) {
       case "openai":
@@ -56,114 +105,141 @@ const ModelConfigForm: React.FC<ModelConfigFormProps> = ({
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-bold text-gray-300 mb-2 tracking-wide uppercase">
-          Provider
-        </label>
-        <select
-          value={localNodeData.provider}
-          onChange={(e) => {
-            const newProvider = e.target.value;
-            setLocalNodeData((prev: any) => ({
-              ...prev,
-              provider: newProvider,
-              model: "",
-            }));
-            onUpdateNode(nodeId, {
-              ...localNodeData,
-              provider: newProvider,
-              model: "",
-            });
-          }}
-          className="w-full p-3 bg-dark border border-gray-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-300"
-        >
-          <option value="openai">OpenAI</option>
-          <option value="anthropic">Anthropic</option>
-          <option value="google">Google</option>
-          <option value="meta">Meta</option>
-          <option value="local">Local</option>
-        </select>
+    <div className="space-y-6 h-full p-6 relative">
+      {/* Status Indicator */}
+      <div className="absolute top-4 right-4 flex items-center gap-2">
+        <Checkmark className="w-4 h-4 text-green-400 drop-shadow-lg" />
+        <span className="text-green-400 text-[10px] font-bold capitalize">
+          Ready
+        </span>
       </div>
-      <div>
-        <label className="block text-sm font-bold text-gray-300 mb-2 tracking-wide uppercase">
-          Model
-        </label>
-        <select
-          value={localNodeData.model}
-          onChange={(e) => handleInputChange("model", e.target.value)}
-          className="w-full p-3 bg-dark border border-gray-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-300"
-        >
-          <option value="">Select a model...</option>
-          {getModelOptions().map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        {localNodeData.provider === "local" &&
-          localNodeData.model === "custom" && (
-            <input
-              type="text"
-              value={String(localNodeData.customModel || "")}
-              onChange={(e) => handleInputChange("customModel", e.target.value)}
-              placeholder="Enter custom model name..."
-              className="w-full p-3 mt-2 bg-dark border border-gray-800 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-300"
-            />
-          )}
+
+      {/* Model Selection */}
+      <div className="space-y-4">
+        <SectionHeader title="Model Selection" icon={Brain} section="model" />
+
+        {expandedSections.model && (
+          <div className="space-y-4 pl-6">
+            <div>
+              <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
+                Provider
+              </label>
+              <select
+                value={localNodeData.provider}
+                onChange={(e) => handleInputChange("provider", e.target.value)}
+                className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-sm transition-all duration-300"
+              >
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="google">Google</option>
+                <option value="meta">Meta</option>
+                <option value="local">Local</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
+                Model
+              </label>
+              <select
+                value={localNodeData.model}
+                onChange={(e) => handleInputChange("model", e.target.value)}
+                className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-sm transition-all duration-300"
+              >
+                <option value="">Select a model...</option>
+                {getModelOptions().map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {localNodeData.provider === "local" &&
+              localNodeData.model === "custom" && (
+                <div>
+                  <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
+                    Custom Model Name
+                  </label>
+                  <input
+                    type="text"
+                    value={localNodeData.customModel || ""}
+                    onChange={(e) =>
+                      handleInputChange("customModel", e.target.value)
+                    }
+                    placeholder="Enter custom model name..."
+                    className="w-full p-3 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
+                  />
+                </div>
+              )}
+          </div>
+        )}
       </div>
-      <div>
-        <label className="block text-sm font-bold text-gray-300 mb-2 tracking-wide uppercase">
-          API Key
-          <span className="text-primary ml-1">*</span>
-        </label>
-        <input
-          type="password"
-          value={String(localNodeData.apiKey || "")}
-          onChange={(e) => handleInputChange("apiKey", e.target.value)}
-          placeholder={
-            localNodeData.provider === "openai"
-              ? "sk-..."
-              : localNodeData.provider === "anthropic"
-              ? "sk-ant-..."
-              : localNodeData.provider === "google"
-              ? "Enter API key..."
-              : localNodeData.provider === "meta"
-              ? "Enter API key..."
-              : "Not required for local models"
-          }
-          className="w-full p-3 bg-dark border border-gray-800 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-300"
+
+      {/* Authentication */}
+      <div className="space-y-4">
+        <SectionHeader title="Authentication" icon={Key} section="auth" />
+
+        {expandedSections.auth && (
+          <div className="space-y-4 pl-6">
+            <div>
+              <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
+                API Key
+                <span className="text-primary ml-1">*</span>
+              </label>
+              <input
+                type="password"
+                value={String(localNodeData.apiKey || "")}
+                onChange={(e) => handleInputChange("apiKey", e.target.value)}
+                placeholder={
+                  localNodeData.provider === "openai"
+                    ? "sk-..."
+                    : localNodeData.provider === "anthropic"
+                    ? "sk-ant-..."
+                    : localNodeData.provider === "google"
+                    ? "AI..."
+                    : "Enter API key..."
+                }
+                className="w-full p-3 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Model Settings */}
+      <div className="space-y-4">
+        <SectionHeader
+          title="Model Settings"
+          icon={Settings}
+          section="settings"
         />
-        <p className="text-xs text-gray-500 mt-1 font-mono">
-          {localNodeData.provider === "openai"
-            ? "Required for OpenAI models"
-            : localNodeData.provider === "anthropic"
-            ? "Required for Anthropic models"
-            : localNodeData.provider === "google"
-            ? "Required for Google models"
-            : localNodeData.provider === "meta"
-            ? "Required for Meta models"
-            : "Not required for local models"}
-        </p>
-      </div>
-      <div>
-        <label className="block text-sm font-bold text-gray-300 mb-2 tracking-wide uppercase">
-          Temperature
-        </label>
-        <input
-          type="number"
-          min="0"
-          max="2"
-          step="0.1"
-          value={Number(localNodeData.temperature || 0.7)}
-          onChange={(e) =>
-            handleInputChange("temperature", parseFloat(e.target.value))
-          }
-          className="w-full p-3 bg-dark border border-gray-800 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-300"
-        />
-        <p className="text-xs text-gray-500 mt-1 font-mono">
-          Controls randomness (0.0 - 2.0)
-        </p>
+
+        {expandedSections.settings && (
+          <div className="space-y-4 pl-6">
+            <div>
+              <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
+                Temperature ({localNodeData.temperature || 0.7})
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.1"
+                value={localNodeData.temperature || 0.7}
+                onChange={(e) =>
+                  handleInputChange("temperature", parseFloat(e.target.value))
+                }
+                className="w-full accent-primary"
+              />
+              <div className="flex justify-between text-xs text-white/50 mt-1">
+                <span>Focused</span>
+                <span>Balanced</span>
+                <span>Creative</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

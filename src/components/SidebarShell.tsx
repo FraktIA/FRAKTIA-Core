@@ -38,7 +38,7 @@ export default function SidebarShell({
 
       {/* Main content grows/shrinks with sidebar */}
       <main
-        className={` lg:h-[97%] w-full    lg:flex lg:mt-5   text-white transition-all duration-300 ${
+        className={` lg:h-[97.5%] w-full    lg:flex lg:mt-5   text-white transition-all duration-300 ${
           sidebarOpen ? "lg:ml-[270px]" : "ml-0"
         }`}
       >

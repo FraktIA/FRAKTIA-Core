@@ -1,6 +1,6 @@
 import Image from "next/image";
 import React from "react";
-import { X } from "lucide-react";
+// import { X } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { Icon } from "@iconify/react";
 import {
@@ -188,7 +188,7 @@ const nodeData: Record<string, NodeItem[]> = {
   ],
   Plugins: [
     {
-      name: "Twitter Client",
+      name: "Twitter",
       description:
         "Run your agent 24/7 on twitter to automatically post and reply  tweets",
       highlight: !true,
@@ -206,7 +206,7 @@ const nodeData: Record<string, NodeItem[]> = {
     // {
     //   name: "API Gateway",
     //   description:
-    //     "Manage external API integrations and handle authentication for third-party services",
+    //     "Manage external API plugins and handle authentication for third-party services",
     //   highlight: false,
     //   icon: "/icons/add-ons.svg",
     //   type: "Plugins" as const,
@@ -222,7 +222,7 @@ const nodeData: Record<string, NodeItem[]> = {
   ],
 };
 
-const Nodes = ({ onAddNode, currentReactFlowNodes }: NodePanelProps) => {
+const NodesPanel = ({ onAddNode, currentReactFlowNodes }: NodePanelProps) => {
   const dispatch = useAppDispatch();
   const nodesPanelCategory = useAppSelector(selectNodesPanelCategory);
 
@@ -334,4 +334,4 @@ const Nodes = ({ onAddNode, currentReactFlowNodes }: NodePanelProps) => {
   );
 };
 
-export default Nodes;
+export default NodesPanel;

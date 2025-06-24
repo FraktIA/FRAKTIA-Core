@@ -10,13 +10,7 @@ export const aiAssistantCharacter: CharacterConfig = {
     "Specializes in problem-solving and information synthesis",
     "Maintains high accuracy and reliability in responses",
   ],
-  plugins: ["@eliza/plugin-web-search", "@eliza/plugin-image-generation"],
-  settings: {
-    secrets: {},
-    voice: {
-      model: "en_US-female-medium",
-    },
-  },
+
   messageExamples: [
     [
       {
@@ -70,17 +64,7 @@ export const creativeCompanionCharacter: CharacterConfig = {
     "Loves to brainstorm ideas and inspire creative projects",
     "Encourages experimentation and unique perspectives",
   ],
-  plugins: [
-    "@eliza/plugin-image-generation",
-    "@eliza/plugin-music-generation",
-    "@eliza/plugin-story-generator",
-  ],
-  settings: {
-    secrets: {},
-    voice: {
-      model: "en_US-female-warm",
-    },
-  },
+
   messageExamples: [
     [
       {
@@ -145,17 +129,6 @@ export const technicalMentorCharacter: CharacterConfig = {
     "Specializes in helping developers understand complex concepts",
     "Focuses on best practices and clean code principles",
   ],
-  plugins: [
-    "@eliza/plugin-code-analysis",
-    "@eliza/plugin-documentation",
-    "@eliza/plugin-github",
-  ],
-  settings: {
-    secrets: {},
-    voice: {
-      model: "en_US-male-calm",
-    },
-  },
   messageExamples: [
     [
       {
@@ -214,17 +187,7 @@ export const empatheticFriendCharacter: CharacterConfig = {
     "Excellent listener who offers comfort and understanding",
     "Focuses on building meaningful connections and offering encouragement",
   ],
-  plugins: [
-    "@eliza/plugin-emotion-detection",
-    "@eliza/plugin-mood-tracker",
-    "@eliza/plugin-wellness",
-  ],
-  settings: {
-    secrets: {},
-    voice: {
-      model: "en_US-female-gentle",
-    },
-  },
+
   messageExamples: [
     [
       {
@@ -282,17 +245,7 @@ export const gamingBuddyCharacter: CharacterConfig = {
     "Loves discussing game mechanics, strategies, and industry news",
     "Always ready for a friendly gaming session or tournament discussion",
   ],
-  plugins: [
-    "@eliza/plugin-gaming-stats",
-    "@eliza/plugin-twitch-integration",
-    "@eliza/plugin-discord",
-  ],
-  settings: {
-    secrets: {},
-    voice: {
-      model: "en_US-male-energetic",
-    },
-  },
+
   messageExamples: [
     [
       {
@@ -340,7 +293,8 @@ export const gamingBuddyCharacter: CharacterConfig = {
 // Casey Black Character (Mysterious Secret Agent)
 export const caseyBlackCharacter: CharacterConfig = {
   name: "Casey Black",
-  system: "Roleplay as Casey Black, a mysterious secret agent who shares insider tips and life hacks from the shadows.",
+  system:
+    "Roleplay as Casey Black, a mysterious secret agent who shares insider tips and life hacks from the shadows.",
   bio: [
     "former intelligence operative who spent years in the field learning secrets that governments don't want you to know. now shares practical wisdom from the shadows to help ordinary people navigate life's challenges.",
     "master of human psychology and social engineering. spent decades studying how power structures work and now teaches others how to read between the lines and see what's really happening.",
@@ -352,15 +306,7 @@ export const caseyBlackCharacter: CharacterConfig = {
     "former analyst who specialized in pattern recognition and predictive modeling. helps people understand hidden trends and prepare for what's coming next.",
     "expert in crisis management and emergency preparedness. knows what really matters when things go wrong and shares practical survival wisdom for modern life.",
   ],
-  plugins: ["@elizaos/plugin-openai", "@elizaos/plugin-sql", "@elizaos/plugin-bootstrap"],
-  settings: {
-    secrets: {
-      OPENAI_API_KEY: "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"
-    },
-    voice: {
-      model: "en_US-hfc_male-medium",
-    },
-  },
+
   messageExamples: [
     [
       {
@@ -428,7 +374,7 @@ export const caseyBlackCharacter: CharacterConfig = {
   ],
   adjectives: [
     "observant",
-    "strategic", 
+    "strategic",
     "pragmatic",
     "insightful",
     "calculated",
@@ -442,7 +388,7 @@ export const caseyBlackCharacter: CharacterConfig = {
     "psychology",
     "social engineering",
     "body language",
-    "micro-expressions", 
+    "micro-expressions",
     "negotiation tactics",
     "influence and persuasion",
     "operational security",
@@ -539,7 +485,7 @@ export const caseyBlackCharacter: CharacterConfig = {
 };
 
 // All characters export
-export const characterConfigs = {
+export const characterConfigs: Record<string, CharacterConfig> = {
   aiAssistant: aiAssistantCharacter,
   creativeCompanion: creativeCompanionCharacter,
   technicalMentor: technicalMentorCharacter,

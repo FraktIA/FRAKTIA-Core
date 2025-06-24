@@ -2,7 +2,8 @@
 
 import React from "react";
 import { Handle, Position, NodeProps } from "@xyflow/react";
-import { Cpu, CheckCircle, AlertCircle } from "lucide-react";
+import { Cpu } from "lucide-react";
+import { Checkmark } from "../Checkmark";
 import { CharacterConfig } from "@/types/nodes";
 
 type FrameworkNodeData = {
@@ -52,7 +53,7 @@ export function FrameworkNode({
 
   return (
     <div
-      className={`relative bg-gradient-to-br ${info.color} p-[2px] rounded-xl ${
+      className={`relative bg-gradient-to-br ${info.name} p-[2px] rounded-xl ${
         selected
           ? "ring-2 ring-lime-400 ring-opacity-80 shadow-lg shadow-lime-400/20"
           : ""
@@ -61,15 +62,8 @@ export function FrameworkNode({
       <div className="bg-black rounded-xl p-4 min-w-[200px]">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-2">
-            <span className="text-2xl">{info.icon}</span>
-            <Cpu className="w-4 h-4 text-gray-500" />
-          </div>
-          {data.configured ? (
-            <CheckCircle className="w-4 h-4 text-lime-400" />
-          ) : (
-            <AlertCircle className="w-4 h-4 text-yellow-400" />
-          )}
+          <Cpu className="w-4 h-4 text-gray-500" />
+          <Checkmark />
         </div>
 
         {/* Title */}
@@ -81,7 +75,7 @@ export function FrameworkNode({
         {/* Character Info - Show if character is configured or if it's a character node */}
         {(data.configured && data.characterName) || isCharacterNode ? (
           <div className="mb-3 p-2 bg-gray-900 rounded-lg border border-gray-800">
-            <div className="text-lime-400 text-xs font-bold tracking-wide uppercase mb-1">
+            <div className="text-lime-400 text-xs font-bold tracking-wide uppercase">
               {data.characterName || data.label}
             </div>
             {data.personality && (
@@ -108,16 +102,12 @@ export function FrameworkNode({
         ) : null}
 
         {/* Status */}
-        <div className="flex items-center space-x-2">
-          <div
-            className={`w-2 h-2 rounded-full ${
-              data.configured ? "bg-lime-400" : "bg-yellow-400"
-            }`}
-          ></div>
-          <span className="text-xs text-gray-400 font-mono">
-            {data.configured ? "CONFIGURED" : "NEEDS SETUP"}
+        {/* <div className="flex items-center space-x-2 mt-2">
+          <Checkmark />
+          <span className="text-xs text-primary font-bold uppercase">
+            Configured
           </span>
-        </div>
+        </div> */}
 
         {/* Handles */}
         <Handle

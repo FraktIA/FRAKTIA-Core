@@ -63,7 +63,7 @@ const Header = () => {
         showNodesPanel ? "" : "rounded-tl-[20px]"
       }  ${
         showPropertiesPanel ? "rounded-br-[20px]" : "rounded-br-[0px]"
-      }  items-center rounded-tr-[20px]   w-full  h-[12%] pl-10 pr-9 py-4`}
+      }  items-center rounded-tr-[20px]   w-full  h-[11vh] pl-10 pr-9 py-4`}
     >
       <div className="w-[335px] h-[60px] gap-6 justify-center flex items-center rounded-[15px] bg-bg">
         <p className="text-white">BUY FRAKTIA</p>
