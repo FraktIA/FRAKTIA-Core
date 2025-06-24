@@ -7,7 +7,7 @@ import { CharacterConfig } from "@/types/nodes";
 
 type FrameworkNodeData = {
   label: string;
-  framework: "elizaos" | "autogen" | "crewai" | "langchain";
+  framework: "elizaos" | "copilot" | "crewai" | "langgraph";
   configured: boolean;
   characterName?: string;
   personality?: string;
@@ -24,8 +24,8 @@ export function FrameworkNode({
       color: "from-lime-400 to-green-500",
       icon: "🤖",
     },
-    autogen: {
-      name: "AUTOGEN",
+    copilot: {
+      name: "COPILOT",
       color: "from-blue-400 to-cyan-500",
       icon: "🔄",
     },
@@ -34,8 +34,8 @@ export function FrameworkNode({
       color: "from-purple-400 to-pink-500",
       icon: "👥",
     },
-    langchain: {
-      name: "LANGCHAIN",
+    langgraph: {
+      name: "LANGGRAPH",
       color: "from-orange-400 to-red-500",
       icon: "🔗",
     },

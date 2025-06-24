@@ -4,7 +4,8 @@
 Design the Properties Panel UI to be clear, user-friendly, and visually consistent with the rest of the application - the main colors are (white,bg,dark,and primary. Using tailwind classes e.g.text-bg). Ensure it supports all node types and is easily extendable for future configuration options.
 
 ## Requirements
-- Use a card or panel layout with clear sectioning for each property.
+- The PropertiesPanel.tsx file will house several config for different nodes depending on which of them is selected on the board.
+- Use a card or panel layout with clear sectioning for each property in each ConfigForm.
 - Display all editable properties for the selected node, with appropriate input types (text, select, toggle, etc.).
 - If no configuration is required, the display an aesthetic message saying configured.
 - Ensure accessibility (labels, focus states, etc.).
@@ -17,3 +18,15 @@ Design the Properties Panel UI to be clear, user-friendly, and visually consiste
 - Use a form structure for property editing.
 - Consider extracting property field components for reuse.
 - Add tests for edge cases (empty, invalid, or large property sets).
+
+
+## Config fields
+
+### Framework
+ - No configuration needed should display configured beautifully
+ 
+### Voice
+ - Should select the voice model to use. A beautiful drop down menu
+
+### AI model
+ - optional API_KEY variable to be added.-  input.

@@ -14,7 +14,7 @@ import {
 } from "@/redux/slices/uiSlice";
 import { useAppKitAccount, useDisconnect } from "@reown/appkit/react";
 import Image from "next/image";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type NodePanelProps = {
   sidebarOpen: boolean;
@@ -131,8 +131,10 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
       ),
     },
   ];
-  const agentsOpen = activeMenu === "Agents";
-  const arenaOpen = activeMenu === "Arena";
+  // const agentsOpen = activeMenu === "Agents";
+  // const arenaOpen = activeMenu === "Arena";
+  const [agentsOpen, setAgentsOpen] = useState(false);
+  const [arenaOpen, setArenaOpen] = useState(false);
   const { isConnected } = useAppKitAccount();
   const address = "0x8b315372696Ba1aaB397684018f7C33C033187E9";
   const { disconnect } = useDisconnect();
@@ -231,18 +233,28 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
       {/* Arena Steps */}
 
       <nav className="flex h-max  border-b-[0.5px] border-[#D9D9D9]/40  flex-col justify-start py-5 relative z-20">
-        <button
-          className="flex    hover:cursor-pointer items-center gap-2 w-full mb-4 select-none"
-          onClick={() => {
-            dispatch(setActiveMenu("Arena"));
-          }}
-          aria-expanded={arenaOpen}
+        <div
+          className={`flex ${
+            activeMenu === "Arena" ? "text-primary" : "text-white"
+          }  justify-between  items-center gap-2 w-full mb-4 select-none`}
         >
-          <h6 className="text-white text-sm font-semibold uppercase flex-1 text-left">
-            Arena
-          </h6>
+          <button
+            className=" cursor-pointer"
+            onClick={() => {
+              dispatch(setActiveMenu("Arena"));
+            }}
+            aria-expanded={arenaOpen}
+          >
+            <h6 className={` text-sm font-semibold uppercase flex-1 text-left`}>
+              Arena
+            </h6>
+          </button>
           <svg
-            className={`transition-transform duration-200 w-4 h-4 ${
+            onClick={() => {
+              setArenaOpen(!arenaOpen);
+              setAgentsOpen(false);
+            }}
+            className={`transition-transform cursor-pointer duration-200 w-4 h-4 ${
               arenaOpen ? "rotate-90" : "rotate-0"
             }`}
             fill="none"
@@ -256,7 +268,7 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
               d="M9 5l7 7-7 7"
             />
           </svg>
-        </button>
+        </div>
         {arenaOpen && (
           <div className="mt-0 flex flex-col gap-6">
             {navItems.map((item, index) => (
@@ -365,20 +377,30 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
       </nav>
       {/*Agent list */}
       <div className=" h-max pt-5">
-        <button
-          className="flex hover:cursor-pointer items-center gap-2 w-full mb-6 select-none"
-          onClick={() => {
-            dispatch(setActiveMenu("Agents"));
-          }}
-          aria-expanded={agentsOpen}
+        <div
+          className={`flex ${
+            activeMenu === "Agents" ? "text-primary" : "text-white"
+          }  justify-between items-center gap-2 w-full mb-6 select-none`}
         >
-          <h6 className="text-white text-sm font-semibold uppercase flex-1 text-left">
-            Agents
-          </h6>
+          <button
+            className="cursor-pointer"
+            onClick={() => {
+              dispatch(setActiveMenu("Agents"));
+            }}
+            aria-expanded={agentsOpen}
+          >
+            <h6 className={`text-sm font-semibold uppercase flex-1 text-left`}>
+              Agents
+            </h6>
+          </button>
           <svg
-            className={`transition-transform duration-200 w-4 h-4 ${
+            className={`transition-transform cursor-pointer duration-200 w-4 h-4 ${
               agentsOpen ? "rotate-90" : "rotate-0"
             }`}
+            onClick={() => {
+              setAgentsOpen(!agentsOpen);
+              setArenaOpen(false);
+            }}
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
@@ -390,7 +412,7 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
               d="M9 5l7 7-7 7"
             />
           </svg>
-        </button>
+        </div>
         {agentsOpen && (
           <div className="flex flex-col gap-6">
             {[

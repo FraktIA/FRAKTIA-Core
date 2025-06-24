@@ -63,6 +63,7 @@ const getNodeType = (nodeName: string): string => {
     LangGraph: "framework",
     LangChain: "framework",
     AutoGen: "framework",
+    Copilot: "framework",
 
     // Character nodes
     "AI Assistant": "character",
@@ -199,14 +200,11 @@ const getDefaultNodeData = (nodeType: string, nodeName: string) => {
       };
     case "framework":
       // Determine the framework type based on the node name
-      let frameworkType: "elizaos" | "autogen" | "crewai" | "langchain" =
-        "elizaos";
+      let frameworkType: "elizaos" | "copilot" | "langgraph" = "elizaos";
       if (nodeName === "LangGraph" || nodeName === "LangChain") {
-        frameworkType = "langchain";
-      } else if (nodeName === "AutoGen") {
-        frameworkType = "autogen";
-      } else if (nodeName === "CrewAI") {
-        frameworkType = "crewai";
+        frameworkType = "langgraph";
+      } else if (nodeName === "Copilot") {
+        frameworkType = "copilot";
       }
 
       return {

@@ -2,6 +2,7 @@ import Image from "next/image";
 import React from "react";
 import { X } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { Icon } from "@iconify/react";
 import {
   selectNodesPanelCategory,
   setShowNodesPanel,
@@ -252,9 +253,9 @@ const Nodes = ({ onAddNode, currentReactFlowNodes }: NodePanelProps) => {
       <div className="flex relative scrollbar-hide overflow-y-scroll pt-10 pb-10  flex-col gap-6">
         <button
           onClick={() => dispatch(setShowNodesPanel(false))}
-          className="text-gray-500 absolute top-0 right-1 hover:text-white transition-colors"
+          className="text-gray-500 absolute top-0 left-1 hover:text-white transition-colors"
         >
-          <X className="w-5 h-5" />
+          <Icon icon="tabler:layout-sidebar-right-expand" className="w-4 h-4" />
         </button>
         {currentNodes.map((node, idx) => (
           <button
