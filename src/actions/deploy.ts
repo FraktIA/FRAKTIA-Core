@@ -28,8 +28,8 @@ export async function deployAgentAction(
       data: node.data,
     }));
 
-    const client = await clientPromise;
-    const db = client.db("agents"); // Use 'agents' database
+    // const client = await clientPromise;
+    // const db = client.db("agents"); // Use 'agents' database
     // const collection = db.collection("deployments");
 
     const agentData: AgentData = {
@@ -44,6 +44,9 @@ export async function deployAgentAction(
 
     // Insert the agent data into MongoDB
     // const result = await collection.insertOne(agentData);
+        return {
+        success: true,
+      };
 
     // if (result.acknowledged) {
     //   return {

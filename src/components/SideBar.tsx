@@ -136,6 +136,17 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
   const [agentsOpen, setAgentsOpen] = useState(false);
   const [arenaOpen, setArenaOpen] = useState(false);
   const { isConnected } = useAppKitAccount();
+
+  // Sync dropdown state with activeMenu
+  useEffect(() => {
+    if (activeMenu === "Agents") {
+      setAgentsOpen(true);
+      setArenaOpen(false);
+    } else if (activeMenu === "Arena") {
+      setArenaOpen(true);
+      setAgentsOpen(false);
+    }
+  }, [activeMenu]);
   const address = "0x8b315372696Ba1aaB397684018f7C33C033187E9";
   const { disconnect } = useDisconnect();
   const dispatch = useAppDispatch();

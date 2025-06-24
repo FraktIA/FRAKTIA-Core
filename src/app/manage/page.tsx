@@ -6,9 +6,10 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { Node } from "@xyflow/react";
 
 import AgentBuilder, { AgentBuilderRef } from "@/components/AgentBuilder";
+import AgentChat from "@/components/AgentChat";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { UnifiedPanel } from "@/components/UnifiedPanel";
-import { setShowNodesPanel } from "@/redux/slices/uiSlice";
+import { setShowNodesPanel, selectActiveMenu } from "@/redux/slices/uiSlice";
 import NodesDataViewer from "@/components/NodesDataViewer";
 // import { useAppKitAccount } from "@reown/appkit/react";
 // import { useRouter } from "next/navigation";
@@ -21,6 +22,7 @@ export default function Manage() {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   // const { isConnected } = useAppKitAccount();
   const { showNodesPanel } = useAppSelector((state) => state.ui);
+  const activeMenu = useAppSelector(selectActiveMenu);
   // const router = useRouter();
   const agentBuilderRef = useRef<AgentBuilderRef | null>(null);
   const dispatch = useAppDispatch();
@@ -81,7 +83,46 @@ export default function Manage() {
       agentBuilderRef.current.clearSelectedNode();
       dispatch(setShowNodesPanel(false));
     }
-  }, [agentBuilderRef.current]);
+  }, [dispatch]);
+
+  const handleAgentSettings = useCallback(() => {
+    // TODO: Implement agent settings modal or navigation
+    console.log("Agent settings clicked");
+  }, []);
+
+  // Don't render anything if not connected (will redirect)
+  // if (!isConnected) {
+  //   return null;
+  // }
+
+  // Render different content based on activeMenu
+  const renderContent = () => {
+    switch (activeMenu) {
+      case "Agents":
+        return <AgentChat onSettingsClick={handleAgentSettings} />;
+      case "Arena":
+      default:
+        return (
+          <div className="flex h-full">
+            <AgentBuilder ref={agentBuilderRef} />
+            {/* Unified Panel on the right side */}
+            {showNodesPanel || selectedNode ? (
+              <div className="min-w-80 h-full">
+                <UnifiedPanel
+                  selectedNode={selectedNode}
+                  onUpdateNode={handleUpdateNode}
+                  onClose={handleClosePanel}
+                  onAddNode={handleAddNode}
+                  currentReactFlowNodes={currentNodes}
+                />
+              </div>
+            ) : (
+              <NodesDataViewer />
+            )}
+          </div>
+        );
+    }
+  };
 
   // Don't render anything if not connected (will redirect)
   // if (!isConnected) {
@@ -92,24 +133,8 @@ export default function Manage() {
     <div className="flex h-full flex-1 relative">
       <div className="flex  bg-bg flex-col flex-1">
         <Header />
-        {/* Agent Builder */}
-        <div className="flex h-full">
-          <AgentBuilder ref={agentBuilderRef} />
-          {/* Unified Panel on the right side */}
-          {showNodesPanel || selectedNode ? (
-            <div className="min-w-80 h-full">
-              <UnifiedPanel
-                selectedNode={selectedNode}
-                onUpdateNode={handleUpdateNode}
-                onClose={handleClosePanel}
-                onAddNode={handleAddNode}
-                currentReactFlowNodes={currentNodes}
-              />
-            </div>
-          ) : (
-            <NodesDataViewer />
-          )}
-        </div>
+        {/* Conditional content based on activeMenu */}
+        {renderContent()}
       </div>
 
       <Modal isOpen={!allowed} onClose={() => {}}>
