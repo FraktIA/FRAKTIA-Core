@@ -1,0 +1,17 @@
+# Cursor Rule: Mobile Responsiveness
+
+## Goal
+Ensure all UI components, especially Properties Panel and Agent Chat UI, are fully responsive and usable on mobile devices.
+
+## Requirements
+- Use Tailwind CSS responsive utilities (e.g., `sm:`, `md:`, `lg:`) for layout and spacing.
+- Test all panels and chat UI on small screens (≤ 640px width).
+- Ensure touch targets are large enough and spacing is adequate.
+- Avoid horizontal scrolling; use vertical stacking for narrow screens.
+- Hide or collapse non-essential UI on mobile (sidebars, extra panels).
+- Use mobile-friendly input components (larger buttons, inputs, etc.).
+- Test with device emulation and real devices if possible.
+
+## Implementation Hints
+- Use CSS grid/flex layouts with responsive breakpoints.
+- Add tests for mobile layouts and edge cases.

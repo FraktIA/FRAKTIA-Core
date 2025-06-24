@@ -1,0 +1,19 @@
+# Cursor Rule: Design Properties Panel
+
+## Goal
+Design the Properties Panel UI to be clear, user-friendly, and visually consistent with the rest of the application - the main colors are (white,bg,dark,and primary. Using tailwind classes e.g.text-bg). Ensure it supports all node types and is easily extendable for future configuration options.
+
+## Requirements
+- Use a card or panel layout with clear sectioning for each property.
+- Display all editable properties for the selected node, with appropriate input types (text, select, toggle, etc.).
+- If no configuration is required, the display an aesthetic message saying configured.
+- Ensure accessibility (labels, focus states, etc.).
+- Use Tailwind CSS for styling and maintain design consistency.
+- Support both desktop and mobile layouts.
+- Hook inputs to thier global variable counterparts using redux.
+- Use React best practices (controlled components, state management, etc.).
+
+## Implementation Hints
+- Use a form structure for property editing.
+- Consider extracting property field components for reuse.
+- Add tests for edge cases (empty, invalid, or large property sets).

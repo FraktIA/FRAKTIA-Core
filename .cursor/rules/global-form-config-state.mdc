@@ -1,0 +1,17 @@
+# Cursor Rule: Global Form Input & Configuration State
+
+## Goal
+Implement a global state to store all form input and configuration data for nodes/agents, accessible throughout the app.
+
+## Requirements
+- Use Redux (or context if preferred) to store all configuration and form input values.
+- Update global state on every form input change in the Properties Panel and other config UIs.
+- Ensure state is serializable and can be saved/restored (for export/import or undo/redo).
+- Provide selectors and actions for updating, resetting, and retrieving configuration.
+- Document the structure of the global config state.
+- Ensure type safety (TypeScript interfaces/types).
+
+## Implementation Hints
+- Add a new slice to Redux for configuration if not present.
+- Use controlled components for all form fields.
+- Add tests for state updates and edge cases.

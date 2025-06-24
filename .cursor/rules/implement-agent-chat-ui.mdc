@@ -1,0 +1,19 @@
+# Cursor Rule: Implement Agent Chat UI
+
+## Goal
+Create a chat interface for agent interaction, supporting message history, user input, and agent responses.
+
+## Requirements
+- UI should resemble a modern chat/messaging app (bubble layout, timestamps, avatars optional).
+- Support sending and displaying messages from both user and agent.
+- Scroll to latest message on new message.
+- Input box should support multiline and send on Enter (with Shift+Enter for newline).
+- Show loading indicator while agent is responding.
+- Use React state for chat history and input.
+- Style with Tailwind CSS for consistency and mobile support.
+- Ensure accessibility (aria-labels, keyboard navigation, etc.).
+
+## Implementation Hints
+- Use a dedicated component for the chat panel.
+- Consider extracting message bubble as a subcomponent.
+- Add tests for message rendering and input edge cases.
