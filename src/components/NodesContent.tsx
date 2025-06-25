@@ -6,9 +6,14 @@ import { characterConfigs } from "@/constants/characters";
 import { CharacterConfig } from "@/types/nodes";
 
 interface NodesContentProps {
-  onAddNode?: (nodeType: string, position?: { x: number; y: number }) => void;
   onOpenTemplates?: () => void;
   currentReactFlowNodes?: Array<{ type?: string; data?: { label?: string } }>;
+  onSelectNode?: (
+    nodeName: string,
+    nodeType: string,
+    character?: CharacterConfig
+  ) => void;
+  highlightedNode?: string;
 }
 
 // Define node structure with character support
@@ -162,8 +167,9 @@ const nodeData: Record<string, NodeItem[]> = {
 };
 
 export function NodesContent({
-  onAddNode,
   currentReactFlowNodes,
+  onSelectNode,
+  highlightedNode,
 }: NodesContentProps) {
   const nodesPanelCategory = useAppSelector(selectNodesPanelCategory);
 
@@ -175,12 +181,23 @@ export function NodesContent({
     );
   };
 
+  // Helper function to check if a node should be highlighted
+  const shouldHighlightNode = (nodeName: string): boolean => {
+    // Check if this node should be highlighted from template selection
+    if (highlightedNode && nodeName === highlightedNode) return true;
+
+    // Check if node is active in board (existing logic)
+    if (isNodeActiveInBoard(nodeName)) return true;
+
+    return false;
+  };
+
   // Get the current nodes based on nodes panel category with dynamic highlighting
   const currentNodes: NodeItem[] = (
     nodeData[nodesPanelCategory as keyof typeof nodeData] || []
   ).map((node) => ({
     ...node,
-    highlight: isNodeActiveInBoard(node.name), // Dynamic highlighting based on ReactFlow board
+    highlight: shouldHighlightNode(node.name), // Updated highlighting logic
   }));
 
   return (
@@ -202,7 +219,12 @@ export function NodesContent({
                   ? "border-[#F8FF99]"
                   : "border-transparent ring-[0px] ring-inset ring-white/8"
               } bg-bg w-full h-[196px] p-5 flex flex-col gap-4 shadow-lg hover:border-[#F8FF99]/50 transition-all duration-200`}
-              onClick={() => onAddNode && onAddNode(node.name)}
+              onClick={() => {
+                // Only call onSelectNode - it will handle adding the node if needed
+                if (onSelectNode) {
+                  onSelectNode(node.name, node.type, node.character);
+                }
+              }}
               title={
                 node.character
                   ? `Character: ${node.character.bio.join(" ")}`

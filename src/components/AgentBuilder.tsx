@@ -11,6 +11,9 @@ import {
   selectAgentBuilderFlow,
   setShowNodesPanel,
   setNodesPanelCategory,
+  openModal,
+  closeModal,
+  selectActiveModal,
 } from "@/redux/slices/uiSlice";
 
 import {
@@ -46,6 +49,7 @@ import { selectNodesForAPI } from "@/redux/slices/selectedNodesSlice";
 import { deployAgentAction } from "@/actions/deploy";
 import { useWindowSize } from "@/hooks/useWindowSize";
 import { useAgentBuilderSync } from "@/hooks/useNodesSync";
+import Modal from "@/components/Modal";
 
 const nodeTypes = {
   framework: FrameworkNode,
@@ -147,40 +151,35 @@ const getDefaultNodeData = (nodeType: string, nodeName: string) => {
   switch (nodeType) {
     case "character":
       const characterConfig = getCharacterConfig(nodeName);
+      // Get the character key from the nodeName
+      const getCharacterKey = (name: string): string => {
+        const keyMap: Record<string, string> = {
+          "AI Assistant": "aiAssistant",
+          "Creative Companion": "creativeCompanion",
+          "Technical Mentor": "technicalMentor",
+          "Empathetic Friend": "empatheticFriend",
+          "Gaming Buddy": "gamingBuddy",
+          "Casey Black": "caseyBlack",
+        };
+        return keyMap[name] || "";
+      };
+
       return {
         ...baseData,
-        characterId: nodeName,
-        characterName: characterConfig ? characterConfig.name : nodeName,
-        customBio: characterConfig ? characterConfig.bio : [],
-        customPersonality: characterConfig ? characterConfig.system : "",
-        customAdjectives: characterConfig ? characterConfig.adjectives : [],
-        customTopics: characterConfig ? characterConfig.topics : [],
-        characterVoice: {
-          model: "alloy",
-          language: "en",
-          speed: 1.0,
-          pitch: 1.0,
-        },
-        behavior: {
-          temperature: 0.7,
-          maxTokens: 2048,
-          responseStyle: "casual" as const,
-          conversationLength: "medium" as const,
-        },
-        memory: {
-          enabled: true,
-          maxContextLength: 4096,
-          rememberUserPreferences: true,
-          conversationHistory: true,
-        },
-        plugins: {
-          enabled: characterConfig ? characterConfig.plugins || [] : [],
-          disabled: [],
-          customConfig: {},
-        },
-        // Mark character nodes as configured by default
+        characterId: getCharacterKey(nodeName),
+        name: characterConfig ? characterConfig.name : nodeName,
+        system: characterConfig ? characterConfig.system : "",
+        bio: characterConfig ? characterConfig.bio : [],
+        messageExamples: characterConfig ? characterConfig.messageExamples : [],
+        postExamples: characterConfig ? characterConfig.postExamples : [],
+        adjectives: characterConfig ? characterConfig.adjectives : [],
+        topics: characterConfig ? characterConfig.topics : [],
+        style: characterConfig
+          ? characterConfig.style
+          : { all: [], chat: [], post: [] },
+        // Mark character nodes as configured by default when they have a character config
         label: characterConfig ? characterConfig.name : nodeName,
-        configured: true,
+        configured: !!characterConfig,
       };
     case "framework":
       // Determine the framework type based on the node name
@@ -199,25 +198,37 @@ const getDefaultNodeData = (nodeType: string, nodeName: string) => {
       };
     case "model":
       // Determine the provider and model based on the node name
-      let provider: "openai" | "anthropic" | "google" | "meta" | "local" =
-        "openai";
+      let provider:
+        | "openai"
+        | "anthropic"
+        | "google"
+        | "meta"
+        | "deepseek"
+        | "local" = "openai";
       let model = "";
 
       if (nodeName.includes("Claude")) {
         provider = "anthropic";
-        model = nodeName.toLowerCase().replace(/\s+/g, "-");
+        // Set a specific Claude model instead of just the name
+        model = "claude-3-sonnet-20240229";
       } else if (nodeName.includes("Gemini")) {
         provider = "google";
-        model = nodeName.toLowerCase().replace(/\s+/g, "-");
+        model = "gemini-pro";
+      } else if (nodeName.includes("DeepSeek")) {
+        provider = "deepseek"; // DeepSeek often uses OpenAI-compatible API
+        model = "deepseek-chat";
+      } else if (nodeName.includes("OpenAI")) {
+        provider = "openai";
+        model = "gpt-4-turbo-preview";
       } else if (nodeName.includes("Llama")) {
         provider = "meta";
-        model = nodeName.toLowerCase().replace(/\s+/g, "-");
+        model = "llama-2-70b";
       } else if (nodeName.includes("Mistral")) {
         provider = "local";
-        model = nodeName.toLowerCase().replace(/\s+/g, "-");
+        model = "mistral-7b";
       } else if (nodeName.includes("GPT")) {
         provider = "openai";
-        model = nodeName.toLowerCase().replace(/\s+/g, "-");
+        model = "gpt-4-turbo-preview";
       }
 
       return {
@@ -225,6 +236,7 @@ const getDefaultNodeData = (nodeType: string, nodeName: string) => {
         model: model,
         provider: provider,
         apiKey: "",
+        configured: provider && model ? true : false,
       };
     case "voice":
       // Determine the voice model based on the node name
@@ -311,6 +323,7 @@ export interface AgentBuilderRef {
   onUpdateNode: (nodeId: string, data: Record<string, unknown>) => void;
   onDeleteNode: (nodeId: string) => void;
   clearSelectedNode: () => void;
+  selectNodeByName: (nodeName: string) => void; // Add method to select node by name
   getAPIData: () => {
     allNodes: Array<{
       type?: string;
@@ -360,9 +373,19 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
   );
   const activeMenu = useAppSelector(selectActiveMenu);
   const apiNodesData = useAppSelector(selectNodesForAPI);
+  const activeModal = useAppSelector(selectActiveModal);
 
   // Add the useReactFlow hook
   const reactFlow = useReactFlow();
+
+  // Helper function to get character name
+  const getCharacterName = useCallback(() => {
+    const characterNode = apiNodesData.allNodes.find(
+      (node) => node.type === "character"
+    );
+    const name = characterNode?.data?.name;
+    return typeof name === "string" ? name : "AI Assistant";
+  }, [apiNodesData.allNodes]);
 
   // Initialize Redux sync
   const {
@@ -464,12 +487,17 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
 
   // Handle deployment to MongoDB
   const handleDeploy = async () => {
+    // Get character name
+    const characterName = getCharacterName();
+
+    // Open loading modal
+    dispatch(openModal("agentDeploying"));
     setIsDeploying(true);
     setDeploymentMessage(null);
 
     try {
       console.log("Deploying agent with nodes:", apiNodesData.allNodes);
-      
+
       // Debug: Log each node's data
       apiNodesData.allNodes.forEach((node, index) => {
         console.log(`Node ${index} (${node.type}):`, node.data);
@@ -477,11 +505,16 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
 
       const result = await deployAgentAction(
         apiNodesData.allNodes,
-        `Agent_${Date.now()}`, // You can add a more sophisticated naming scheme
+        characterName, // Use character name instead of timestamp
         "AI Agent created with node builder"
       );
 
+      // Close loading modal first
+      dispatch(closeModal());
+
       if (result.success) {
+        // Open success modal
+        dispatch(openModal("agentCreated"));
         setDeploymentMessage(
           `✅ Agent deployed successfully! ID: ${result.agentId}`
         );
@@ -491,6 +524,8 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
         console.error("Deployment failed:", result.error);
       }
     } catch (error) {
+      // Close loading modal on error
+      dispatch(closeModal());
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
       setDeploymentMessage(`❌ Deployment error: ${errorMessage}`);
@@ -567,6 +602,8 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
 
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
+      console.log("Node clicked:", node.data?.label, node.type); // Debug log
+
       // Update nodes to reflect selection state
       setNodes((nds) =>
         nds.map((n) => ({
@@ -592,6 +629,7 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
       if (node.type && typeof node.type === "string") {
         const navCategory = nodeTypeToNavCategory[node.type];
         if (navCategory) {
+          console.log("Setting nodes panel category:", navCategory); // Debug log
           dispatch(setNodesPanelCategory(navCategory));
           dispatch(setShowNodesPanel(true));
         }
@@ -707,6 +745,7 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
     onUpdateNode,
     onDeleteNode,
     clearSelectedNode: () => setSelectedNode(null),
+    selectNodeByName, // Add the new method
     getAPIData: prepareForAPISubmission, // Expose API data preparation
   }));
 
@@ -756,6 +795,26 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
       }
     },
     [setNodes]
+  );
+
+  const selectNodeByName = useCallback(
+    (nodeName: string) => {
+      const targetNode = nodes.find((node) => node.data?.label === nodeName);
+      if (targetNode) {
+        // Update nodes to reflect selection state
+        setNodes((nds) =>
+          nds.map((n) => ({
+            ...n,
+            selected: n.id === targetNode.id,
+          }))
+        );
+        setSelectedNode(targetNode);
+
+        // Sync selection to Redux immediately
+        syncSelectionChange({ nodes: [targetNode] });
+      }
+    },
+    [nodes, setNodes, syncSelectionChange]
   );
 
   // Initialize view when nodes change or viewport size changes
@@ -1011,6 +1070,7 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
           onNodeClick={onNodeClick}
           onSelectionChange={onSelectionChange}
           onPaneClick={() => {
+            console.log("Pane clicked"); // Debug log
             // Clear selection when clicking on empty space
             setNodes((nds) =>
               nds.map((n) => ({
@@ -1024,12 +1084,15 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
           style={flowStyles}
           className="bg-gradient-to-br  h-full rounded-tl-[20px] w-full from-gray-900 to-black"
           // Disable zoom interactions to make it static
-          zoomOnScroll={false}
-          zoomOnPinch={false}
+          zoomOnScroll={!false}
+          zoomOnPinch={!false}
           zoomOnDoubleClick={false}
           // Disable panning to make it completely static
-          panOnDrag={false}
+          panOnDrag={!false}
           panOnScroll={false}
+          // Disable node dragging but keep selection enabled
+          nodesDraggable={!false}
+          nodesConnectable={false}
           // Set zoom limits
           minZoom={0.1}
           maxZoom={1.0}
@@ -1039,6 +1102,8 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
           elementsSelectable={true}
           // Set initial viewport with slightly higher zoom for better visibility
           defaultViewport={{ x: 50, y: 50, zoom: 0.25 }}
+          // Hide the ReactFlow attribution
+          proOptions={{ hideAttribution: true }}
         >
           {/* <Controls
             className="bg-black/80 border rotate-90 text-black border-gray-700 rounded-lg shadow-2xl"
@@ -1064,6 +1129,77 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
             <p className="text-sm text-white">{deploymentMessage}</p>
           </div>
         )}
+
+        {/* Agent Deploying Modal */}
+        <Modal
+          isOpen={activeModal === "agentDeploying"}
+          onClose={() => {}} // Prevent closing during deployment
+        >
+          <div className="bg-dark justify-center  w-[327px] h-[339px] lg:w-[691px] lg:h-[352px] rounded-[20px] shadow-lg flex flex-col items-center ">
+            <div className="relative w-12  h-12  mb-8">
+              {/* Background circle */}
+              <div className="absolute inset-0 rounded-full border-[6px] border-gray-700"></div>
+              {/* Animated progress arc */}
+              <div className="absolute inset-0 rounded-full border-[6px] border-transparent border-t-[#f8ff99] animate-spin"></div>
+            </div>
+            <h2 className=" text-white mb-10">
+              Your Agent{" "}
+              <span className="text-primary font-semibold">
+                {" "}
+                {getCharacterName()}{" "}
+              </span>
+              is being Created...
+            </h2>
+            <div className="flex w-max h-max items-center gap-2  py-5 relative">
+              <span className="w-[14px] h-[14px] lg:w-5 lg:h-5  bg-primary rounded-full"></span>
+              <span className="text-base lg:text-[20px] text-primary font-light">
+                FRAKTIA
+              </span>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Agent Created Success Modal */}
+        <Modal
+          // isOpen={true}
+          isOpen={activeModal === "agentCreated"}
+          onClose={() => dispatch(closeModal())}
+        >
+          <div className="bg-dark justify-center  w-[327px] h-[339px] lg:w-[691px] lg:h-[352px] rounded-[20px] shadow-lg flex flex-col items-center ">
+            <div className="flex flex-col items-center justify-center">
+              <div className="relative w-12 mb-8  h-12 ">
+                <Image
+                  src={"/icons/check-circle.svg"}
+                  fill
+                  alt="check"
+                  className=""
+                />
+              </div>
+              <h2 className=" text-white mb-6">
+                <span className="text-primary font-semibold">
+                  {" "}
+                  {getCharacterName()}{" "}
+                </span>
+                Created
+              </h2>
+            </div>
+            <button className="w-[263px] mb-8 border-[#232323] border text-black rounded-[8px] flex items-center gap-1 justify-center bg-primary cursor-pointer hover:bg-primary/80 duration-200 h-[48px] lg:w-[320px]">
+              <p>Explore Agent</p>
+              <Image
+                src={"/icons/chat.svg"}
+                width={24}
+                height={24}
+                alt="chat"
+              />
+            </button>
+            <div className="flex w-max h-max items-center gap-2  py-5 relative">
+              <span className="w-[14px] h-[14px] lg:w-5 lg:h-5  bg-primary rounded-full"></span>
+              <span className="text-base lg:text-[20px] text-primary font-light">
+                FRAKTIA
+              </span>
+            </div>
+          </div>
+        </Modal>
       </div>
     </div>
   );

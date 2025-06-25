@@ -3,7 +3,7 @@
 // Character Node Data Interface
 export interface CharacterNodeData {
   characterId?: string;
-  characterName?: string;
+  name?: string;
   system?: string;
   bio?: string[];
   messageExamples?: Array<Array<{ name: string; content: { text: string } }>>;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import FrameworkConfigForm from "@/app/components/config/FrameworkConfigForm";
 import VoiceConfigForm from "@/app/components/config/VoiceConfigForm";
 import ModelConfigForm from "@/app/components/config/ModelConfigForm";
@@ -23,96 +23,30 @@ import {
 interface PropertiesContentProps {
   node: Node;
   onUpdateNode: (nodeId: string, data: Record<string, unknown>) => void;
+  onHighlightCharacter?: (nodeName: string) => void;
 }
 
 export function PropertiesContent({
   node,
   onUpdateNode,
+  onHighlightCharacter,
 }: PropertiesContentProps) {
   const [localNodeData, setLocalNodeData] = useState<NodeData>(() => {
     const defaultData: Record<string, unknown> = {
       configured: false,
       ...(node.data || {}),
     };
-
-    // Set type-specific defaults
-    switch (node.type) {
-      case "character":
-        return {
-          characterName: "",
-          system: "",
-          bio: [],
-          messageExamples: [],
-          postExamples: [],
-          adjectives: [],
-          topics: [],
-          style: { all: [], chat: [], post: [] },
-          configured: false,
-          ...defaultData,
-        } as CharacterNodeData;
-      case "framework":
-        return {
-          label: "Framework",
-          framework: "elizaos",
-          configured: false,
-          ...defaultData,
-        } as FrameworkNodeData;
-      case "model":
-        return {
-          provider: "openai",
-          model: "",
-          configured: false,
-          ...defaultData,
-        } as ModelNodeData;
-      case "voice":
-        return {
-          configured: false,
-          ...defaultData,
-        } as VoiceNodeData;
-      case "plugin":
-        return {
-          service: "twitter",
-          twitterDryRun: false,
-          twitterTargetUsers: "",
-          twitterRetryLimit: 5,
-          twitterPollInterval: 120,
-          twitterPostEnable: false,
-          twitterPostIntervalMin: 90,
-          twitterPostIntervalMax: 180,
-          twitterPostImmediately: false,
-          twitterPostIntervalVariance: 0.2,
-          twitterSearchEnable: true,
-          twitterInteractionIntervalMin: 15,
-          twitterInteractionIntervalMax: 30,
-          twitterInteractionIntervalVariance: 0.3,
-          twitterAutoRespondMentions: true,
-          twitterAutoRespondReplies: true,
-          twitterMaxInteractionsPerRun: 10,
-          twitterTimelineAlgorithm: "weighted",
-          twitterTimelineUserBasedWeight: 3,
-          twitterTimelineTimeBasedWeight: 2,
-          twitterTimelineRelevanceWeight: 5,
-          twitterMaxTweetLength: 4000,
-          twitterDmOnly: false,
-          twitterEnableActionProcessing: false,
-          twitterActionInterval: 240,
-          configured: false,
-          ...defaultData,
-        } as PluginNodeData;
-      case "logic":
-        return {
-          configured: false,
-          ...defaultData,
-        } as LogicNodeData;
-      case "output":
-        return {
-          configured: false,
-          ...defaultData,
-        } as OutputNodeData;
-      default:
-        return defaultData as NodeData;
-    }
+    return defaultData;
   });
+
+  // Sync local data when the node changes
+  useEffect(() => {
+    const newData: Record<string, unknown> = {
+      configured: false,
+      ...(node.data || {}),
+    };
+    setLocalNodeData(newData);
+  }, [node.id, node.data]); // Re-run when node ID or data changes
 
   const handleInputChange = useCallback(
     (field: string, value: string | number | boolean | object) => {
@@ -209,9 +143,10 @@ export function PropertiesContent({
   const renderConfigForm = () => {
     switch (node.type) {
       case "character":
+        // console.log("localNodeData:", localNodeData, node);
         return (
           <CharacterConfigForm
-            localNodeData={localNodeData as CharacterNodeData}
+            character={localNodeData as CharacterNodeData}
             handleInputChange={handleInputChange}
             handleArrayInputChange={handleArrayInputChange}
             addArrayItem={addArrayItem}
@@ -219,6 +154,7 @@ export function PropertiesContent({
             onUpdateNode={onUpdateNode}
             nodeId={node.id}
             setLocalNodeData={setLocalNodeData}
+            onHighlightCharacter={onHighlightCharacter}
           />
         );
       case "framework":
@@ -230,17 +166,18 @@ export function PropertiesContent({
       case "model":
         return (
           <ModelConfigForm
-            localNodeData={localNodeData as ModelNodeData}
+            model={localNodeData as ModelNodeData}
             handleInputChange={handleInputChange}
-            setLocalNodeData={
-              setLocalNodeData as React.Dispatch<
-                React.SetStateAction<ModelNodeData>
-              >
-            }
-            onUpdateNode={(nodeId: string, data: ModelNodeData) =>
-              onUpdateNode(nodeId, data as unknown as Record<string, unknown>)
-            }
-            nodeId={node.id}
+            // setLocalNodeData={
+            //   setLocalNodeData as React.Dispatch<
+            //     React.SetStateAction<ModelNodeData>
+            //   >
+            // }
+            // onUpdateNode={(nodeId: string, data: ModelNodeData) =>
+            //   onUpdateNode(nodeId, data as unknown as Record<string, unknown>)
+            // }
+            // nodeId={node.id}
+            onHighlightCharacter={onHighlightCharacter}
           />
         );
       case "voice":

@@ -18,7 +18,7 @@ import {
 } from "@/types/nodeData";
 
 interface CharacterConfigFormProps {
-  localNodeData: CharacterNodeData;
+  character: CharacterNodeData;
   handleInputChange: (
     field: string,
     value: string | number | boolean | object
@@ -29,10 +29,11 @@ interface CharacterConfigFormProps {
   onUpdateNode: (nodeId: string, data: Record<string, unknown>) => void;
   nodeId: string;
   setLocalNodeData: (data: Record<string, unknown>) => void;
+  onHighlightCharacter?: (nodeName: string) => void;
 }
 
 const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
-  localNodeData,
+  character,
   handleInputChange,
   handleArrayInputChange,
   addArrayItem,
@@ -40,6 +41,7 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
   onUpdateNode,
   nodeId,
   setLocalNodeData,
+  onHighlightCharacter,
 }) => {
   const availableCharacters = Object.keys(characterConfigs);
   const [expandedSections, setExpandedSections] = useState({
@@ -102,7 +104,7 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
 
   const handleStyleArrayChange = useCallback(
     (styleType: "all" | "chat" | "post", value: string, index: number) => {
-      const currentStyle = localNodeData.style || {
+      const currentStyle = character.style || {
         all: [],
         chat: [],
         post: [],
@@ -117,12 +119,12 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
 
       handleInputChange("style", updatedStyle);
     },
-    [localNodeData.style, handleInputChange]
+    [character.style, handleInputChange]
   );
 
   const addStyleArrayItem = useCallback(
     (styleType: "all" | "chat" | "post") => {
-      const currentStyle = localNodeData.style || {
+      const currentStyle = character.style || {
         all: [],
         chat: [],
         post: [],
@@ -134,12 +136,12 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
 
       handleInputChange("style", updatedStyle);
     },
-    [localNodeData.style, handleInputChange]
+    [character.style, handleInputChange]
   );
 
   const removeStyleArrayItem = useCallback(
     (styleType: "all" | "chat" | "post", index: number) => {
-      const currentStyle = localNodeData.style || {
+      const currentStyle = character.style || {
         all: [],
         chat: [],
         post: [],
@@ -155,7 +157,7 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
 
       handleInputChange("style", updatedStyle);
     },
-    [localNodeData.style, handleInputChange]
+    [character.style, handleInputChange]
   );
 
   const handleMessageExampleChange = useCallback(
@@ -165,60 +167,98 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
       field: string,
       value: string
     ) => {
-      const currentExamples = localNodeData.messageExamples || [];
-      const updatedExamples = [...currentExamples];
+      const currentExamples = character.messageExamples || [];
 
+      // Create a completely new array structure
+      const updatedExamples = currentExamples.map((example, eIndex) => {
+        if (eIndex === exampleIndex) {
+          // Deep copy the entire example array
+          const updatedExample = [...example];
+
+          // Ensure the message exists
+          if (!updatedExample[messageIndex]) {
+            updatedExample[messageIndex] = {
+              name: "",
+              content: { text: "" },
+            };
+          }
+
+          // Create a new message object
+          const currentMessage = updatedExample[messageIndex];
+          const updatedMessage = {
+            name: currentMessage.name,
+            content: { text: currentMessage.content?.text || "" },
+          };
+
+          if (field === "name") {
+            updatedMessage.name = value;
+          } else if (field === "text") {
+            updatedMessage.content.text = value;
+          }
+
+          // Create a new example array with the updated message
+          updatedExample[messageIndex] = updatedMessage;
+          return updatedExample;
+        }
+        // Return a deep copy of other examples
+        return example.map((message) => ({
+          name: message.name,
+          content: { text: message.content?.text || "" },
+        }));
+      });
+
+      // If the example doesn't exist, create it
       if (!updatedExamples[exampleIndex]) {
-        updatedExamples[exampleIndex] = [];
-      }
-      if (!updatedExamples[exampleIndex][messageIndex]) {
-        updatedExamples[exampleIndex][messageIndex] = {
-          name: "",
-          content: { text: "" },
-        };
-      }
+        const newExamples = [...updatedExamples];
+        newExamples[exampleIndex] = [
+          {
+            name: "",
+            content: { text: "" },
+          },
+        ];
 
-      if (field === "name") {
-        updatedExamples[exampleIndex][messageIndex].name = value;
-      } else if (field === "text") {
-        updatedExamples[exampleIndex][messageIndex].content.text = value;
+        // Update the specific message
+        const updatedMessage = {
+          name: field === "name" ? value : "",
+          content: { text: field === "text" ? value : "" },
+        };
+        newExamples[exampleIndex][messageIndex] = updatedMessage;
+
+        handleInputChange("messageExamples", newExamples);
+        return;
       }
 
       handleInputChange("messageExamples", updatedExamples);
     },
-    [localNodeData.messageExamples, handleInputChange]
+    [character.messageExamples, handleInputChange]
   );
 
   const addMessageExample = useCallback(() => {
-    const currentExamples = localNodeData.messageExamples || [];
+    const currentExamples = character.messageExamples || [];
     const newExample = [
       { name: "User", content: { text: "" } },
       {
-        name: localNodeData.characterName || "Character",
+        name: character.name || "Character",
         content: { text: "" },
       },
     ];
     handleInputChange("messageExamples", [...currentExamples, newExample]);
-  }, [
-    localNodeData.messageExamples,
-    localNodeData.characterName,
-    handleInputChange,
-  ]);
+  }, [character.messageExamples, character.name, handleInputChange]);
 
   const removeMessageExample = useCallback(
     (exampleIndex: number) => {
-      const currentExamples = localNodeData.messageExamples || [];
+      const currentExamples = character.messageExamples || [];
       const updatedExamples = currentExamples.filter(
         (_: unknown, i: number) => i !== exampleIndex
       );
       handleInputChange("messageExamples", updatedExamples);
     },
-    [localNodeData.messageExamples, handleInputChange]
+    [character.messageExamples, handleInputChange]
   );
 
   const addMessageToExample = useCallback(
     (exampleIndex: number) => {
-      const currentExamples = localNodeData.messageExamples || [];
+      const currentExamples = character.messageExamples || [];
       const updatedExamples = [...currentExamples];
 
       if (!updatedExamples[exampleIndex]) {
@@ -226,22 +266,18 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
       }
 
       updatedExamples[exampleIndex].push({
-        name: localNodeData.characterName || "Character",
+        name: character.name || "Character",
         content: { text: "" },
       });
 
       handleInputChange("messageExamples", updatedExamples);
     },
-    [
-      localNodeData.messageExamples,
-      localNodeData.characterName,
-      handleInputChange,
-    ]
+    [character.messageExamples, character.name, handleInputChange]
   );
 
   const removeMessageFromExample = useCallback(
     (exampleIndex: number, messageIndex: number) => {
-      const currentExamples = localNodeData.messageExamples || [];
+      const currentExamples = character.messageExamples || [];
       const updatedExamples = [...currentExamples];
 
       if (updatedExamples[exampleIndex]) {
@@ -252,8 +288,27 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
 
       handleInputChange("messageExamples", updatedExamples);
     },
-    [localNodeData.messageExamples, handleInputChange]
+    [character.messageExamples, handleInputChange]
   );
+
+  // Function to create empty character data for "New" option
+  const createEmptyCharacterData = useCallback(() => {
+    return {
+      characterId: "new",
+      name: "",
+      system: "",
+      bio: [],
+      messageExamples: [],
+      postExamples: [],
+      adjectives: [],
+      topics: [],
+      style: {
+        all: [],
+        chat: [],
+        post: [],
+      },
+    };
+  }, []);
 
   return (
     <div className="space-y-6 py-5 px-3 bg-dark rounded-xl  relative max-h-[80vh] overflow-y-auto">
@@ -263,30 +318,45 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
           Character Template
         </label>
         <select
-          value={localNodeData.characterId || ""}
+          value={character.characterId || ""}
           onChange={(e) => {
             const characterId = e.target.value;
-            const character = characterConfigs[characterId];
-            if (character) {
-              const updatedData = {
-                ...localNodeData,
-                characterId,
-                name: character.name,
-                system: character.system,
-                bio: character.bio,
-                messageExamples: character.messageExamples,
-                postExamples: character.postExamples,
-                adjectives: character.adjectives,
-                topics: character.topics,
-                style: character.style,
-              };
-              setLocalNodeData(updatedData);
-              onUpdateNode(nodeId, updatedData);
+
+            if (characterId === "new") {
+              // Create empty character data for new character
+              const emptyData = createEmptyCharacterData();
+              setLocalNodeData(emptyData);
+              onUpdateNode(nodeId, emptyData);
+            } else if (characterId) {
+              // Load existing character template
+              const character = characterConfigs[characterId];
+              if (character) {
+                const updatedData = {
+                  ...character,
+                  characterId,
+                  name: character.name,
+                  system: character.system,
+                  bio: character.bio,
+                  messageExamples: character.messageExamples,
+                  postExamples: character.postExamples,
+                  adjectives: character.adjectives,
+                  topics: character.topics,
+                  style: character.style,
+                };
+                setLocalNodeData(updatedData);
+                onUpdateNode(nodeId, updatedData);
+
+                // Highlight the character in NodesContent (without switching tabs)
+                if (onHighlightCharacter) {
+                  onHighlightCharacter(character.name);
+                }
+              }
             }
           }}
           className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-sm transition-all duration-300"
         >
           <option value="">Select a character template...</option>
+          <option value="new">New Character (Empty Template)</option>
           {availableCharacters.map((charId) => (
             <option key={charId} value={charId}>
               {characterConfigs[charId].name}
@@ -308,10 +378,8 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
               </label>
               <input
                 type="text"
-                value={localNodeData.characterName || ""}
-                onChange={(e) =>
-                  handleInputChange("characterName", e.target.value)
-                }
+                value={character.name || ""}
+                onChange={(e) => handleInputChange("name", e.target.value)}
                 placeholder="Enter character name..."
                 className="w-full p-3 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
               />
@@ -323,7 +391,7 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
                 System Prompt
               </label>
               <textarea
-                value={localNodeData.system || ""}
+                value={character.system || ""}
                 onChange={(e) => handleInputChange("system", e.target.value)}
                 placeholder="Describe the character's role and personality..."
                 rows={4}
@@ -340,12 +408,12 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
           title="Biography"
           icon={FileText}
           section="bio"
-          count={localNodeData.bio?.length || 0}
+          count={character.bio?.length || 0}
         />
 
         {expandedSections.bio && (
           <div className="space-y-3 pl-6">
-            {(localNodeData.bio || []).map((bioItem: string, index: number) => (
+            {(character.bio || []).map((bioItem: string, index: number) => (
               <div key={index} className="relative">
                 <textarea
                   value={bioItem}
@@ -380,12 +448,12 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
           title="Message Examples"
           icon={MessageSquare}
           section="examples"
-          count={localNodeData.messageExamples?.length || 0}
+          count={character.messageExamples?.length || 0}
         />
 
         {expandedSections.examples && (
           <div className="space-y-4 pl-6">
-            {(localNodeData.messageExamples || []).map(
+            {(character.messageExamples || []).map(
               (example: ConversationExample, exampleIndex: number) => (
                 <div
                   key={exampleIndex}
@@ -422,12 +490,12 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
                             }
                             className="flex-1 p-2 bg-dark border border-dark rounded text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-xs"
                           >
-                            <option value="">Select speaker...</option>
-                            <option value="User">User</option>
-                            <option
-                              value={localNodeData.characterName || "Character"}
-                            >
-                              {localNodeData.characterName || "Character"}
+                            <option value="" disabled>
+                              Select speaker...
+                            </option>
+                            <option value="user">User</option>
+                            <option value={character.name || "Character"}>
+                              {character.name || "Character"}
                             </option>
                           </select>
                           <button
@@ -482,7 +550,7 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
               <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
                 Post Examples
               </label>
-              {(localNodeData.postExamples || []).map(
+              {(character.postExamples || []).map(
                 (post: string, index: number) => (
                   <div key={index} className="relative mb-2">
                     <textarea
@@ -525,8 +593,8 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
           icon={Hash}
           section="traits"
           count={
-            (localNodeData.adjectives?.length || 0) +
-            (localNodeData.topics?.length || 0)
+            (character.adjectives?.length || 0) +
+            (character.topics?.length || 0)
           }
         />
 
@@ -538,11 +606,11 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
                 Adjectives
               </label>
               <div className="flex flex-wrap gap-2 mb-3">
-                {(localNodeData.adjectives || []).map(
+                {(character.adjectives || []).map(
                   (adj: string, index: number) => (
                     <div
                       key={index}
-                      className="flex items-center gap-1 bg-primary/20 text-primary rounded-full px-3 py-1 text-sm"
+                      className="flex items-center gap-1 text-white border-primary/48 border rounded-full px-3 py-1 text-sm"
                     >
                       <input
                         value={adj}
@@ -554,13 +622,13 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
                           )
                         }
                         placeholder="adjective"
-                        className="bg-transparent focus:outline-none min-w-[80px] text-sm"
+                        className="bg-transparent focus:outline-none text-sm"
                       />
                       <button
                         onClick={() => removeArrayItem("adjectives", index)}
-                        className="text-primary/70 hover:text-primary transition-colors"
+                        className="text-red-400 hover:text-red-500 transition-colors"
                       >
-                        <X size={14} />
+                        <XCircle size={14} />
                       </button>
                     </div>
                   )
@@ -580,11 +648,11 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
                 Topics
               </label>
               <div className="flex flex-wrap gap-2 mb-3">
-                {(localNodeData.topics || []).map(
+                {(character.topics || []).map(
                   (topic: string, index: number) => (
                     <div
                       key={index}
-                      className="flex items-center gap-1 bg-gray-700 rounded-full px-3 py-1 text-sm"
+                      className="flex items-center gap-1 border-primary/50 border rounded-full px-3 py-1 text-sm"
                     >
                       <input
                         value={topic}
@@ -600,9 +668,9 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
                       />
                       <button
                         onClick={() => removeArrayItem("topics", index)}
-                        className="text-gray-400 hover:text-gray-300 transition-colors"
+                        className="text-red-400 hover:text-red-500 transition-colors"
                       >
-                        <X size={14} />
+                        <XCircle size={14} />
                       </button>
                     </div>
                   )
@@ -625,7 +693,7 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
           title="Communication Style"
           icon={Sparkles}
           section="style"
-          count={Object.values(localNodeData.style || {}).reduce(
+          count={Object.values(character.style || {}).reduce(
             (acc: number, arr: unknown) =>
               acc + (Array.isArray(arr) ? arr.length : 0),
             0
@@ -639,7 +707,7 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
               <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
                 General Style Rules
               </label>
-              {(localNodeData.style?.all || []).map(
+              {(character.style?.all || []).map(
                 (rule: string, index: number) => (
                   <div key={index} className="relative mb-2">
                     <input
@@ -673,7 +741,7 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
               <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
                 Chat Style Rules
               </label>
-              {(localNodeData.style?.chat || []).map(
+              {(character.style?.chat || []).map(
                 (rule: string, index: number) => (
                   <div key={index} className="relative mb-2">
                     <input
@@ -707,7 +775,7 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
               <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
                 Post Style Rules
               </label>
-              {(localNodeData.style?.post || []).map(
+              {(character.style?.post || []).map(
                 (rule: string, index: number) => (
                   <div key={index} className="relative mb-2">
                     <input

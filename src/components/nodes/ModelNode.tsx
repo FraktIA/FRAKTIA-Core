@@ -7,7 +7,7 @@ import { Brain, CheckCircle, AlertCircle } from "lucide-react";
 type ModelNodeData = {
   label: string;
   model: string;
-  provider: "openai" | "anthropic" | "google" | "meta" | "local";
+  provider: "openai" | "anthropic" | "google" | "meta" | "local" | "deepseek";
   configured: boolean;
 };
 
@@ -20,6 +20,7 @@ export function ModelNode({
     anthropic: { name: "Anthropic", accent: "lime-400", icon: "🧠" },
     google: { name: "Google", accent: "lime-400", icon: "🔍" },
     meta: { name: "Meta", accent: "lime-400", icon: "🦙" },
+    deepseek: { name: "Deepseek", accent: "lime-400", icon: "💻" },
     local: { name: "Local", accent: "lime-400", icon: "💻" },
   };
 

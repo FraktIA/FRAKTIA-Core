@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Settings, Send } from "lucide-react";
+import { Settings } from "lucide-react";
+import Image from "next/image";
 
 interface Message {
   id: string;
@@ -74,7 +75,9 @@ export default function AgentChat({ onSettingsClick }: AgentChatProps) {
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-primary/60 bg-dark">
         <div>
-          <h2 className="text-lg font-bold text-white tracking-wide uppercase">Agent Chat</h2>
+          <h2 className="text-lg font-bold text-white tracking-wide uppercase">
+            Agent Chat
+          </h2>
           <p className="text-sm text-gray-400">Interact with your AI agent</p>
         </div>
         <button
@@ -114,8 +117,14 @@ export default function AgentChat({ onSettingsClick }: AgentChatProps) {
             <div className="bg-dark border border-primary/30 text-white rounded-lg p-3">
               <div className="flex space-x-1">
                 <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                <div
+                  className="w-2 h-2 bg-primary rounded-full animate-bounce"
+                  style={{ animationDelay: "0.1s" }}
+                ></div>
+                <div
+                  className="w-2 h-2 bg-primary rounded-full animate-bounce"
+                  style={{ animationDelay: "0.2s" }}
+                ></div>
               </div>
             </div>
           </div>
@@ -125,22 +134,22 @@ export default function AgentChat({ onSettingsClick }: AgentChatProps) {
 
       {/* Input */}
       <div className="p-4 border-t border-primary/60 bg-dark">
-        <div className="flex space-x-2">
+        <div className="flex focus:ring-primary bg-dark border border-primary/30 rounded-[10px] pl-4 pr-1.5 justify-between items-center min-h-[56px] ">
           <textarea
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Type your message..."
-            className="flex-1 bg-dark border border-primary/30 text-white rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary placeholder-gray-400"
+            placeholder="Example : “Explain quantum computing in simple terms”"
+            className="flex-1  text-white  py-3 resize-none focus:outline-none  font-medium  placeholder:text-[#e5e5e5]/30 flex items-center"
             rows={1}
             disabled={isLoading}
           />
           <button
             onClick={handleSendMessage}
             disabled={!inputValue.trim() || isLoading}
-            className="bg-primary text-black px-4 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            className="bg-primary w-11 h-11 rounded-[10px] hover:bg-primary/90 flex items-center justify-center disabled:cursor-not-allowed "
           >
-            <Send size={16} />
+            <Image src={"/icons/send.svg"} alt="Send" width={20} height={20} />
           </button>
         </div>
       </div>

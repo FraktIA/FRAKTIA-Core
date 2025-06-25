@@ -5,6 +5,7 @@ import { Node } from "@xyflow/react";
 import { X, Settings, Plus } from "lucide-react";
 import { PropertiesContent } from "./PropertiesContent";
 import { NodesContent } from "./NodesContent";
+import { CharacterConfig } from "@/types/nodes";
 
 interface UnifiedPanelProps {
   // Properties Panel props
@@ -16,6 +17,11 @@ interface UnifiedPanelProps {
   onAddNode?: (nodeType: string, position?: { x: number; y: number }) => void;
   onOpenTemplates?: () => void;
   currentReactFlowNodes?: Array<{ type?: string; data?: { label?: string } }>;
+  onSelectNode?: (
+    nodeName: string,
+    nodeType: string,
+    character?: CharacterConfig
+  ) => void;
 }
 
 type TabType = "config" | "nodes";
@@ -24,12 +30,22 @@ export function UnifiedPanel({
   selectedNode,
   onUpdateNode,
   onClose,
-  onAddNode,
   onOpenTemplates,
   currentReactFlowNodes,
+  onSelectNode,
 }: UnifiedPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>("nodes");
   const [isAnimating, setIsAnimating] = useState(false);
+  const [highlightedNode, setHighlightedNode] = useState<string>("");
+
+  const handleNodeHighlight = useCallback((nodeName: string) => {
+    setHighlightedNode(nodeName);
+
+    // Clear the highlight after 3 seconds
+    setTimeout(() => {
+      setHighlightedNode("");
+    }, 3000);
+  }, []);
 
   const handleTabChange = useCallback(
     (tab: TabType) => {
@@ -42,6 +58,19 @@ export function UnifiedPanel({
       }, 150);
     },
     [activeTab]
+  );
+
+  // Handle node selection from NodesPanel
+  const handleNodeSelect = useCallback(
+    (nodeName: string, nodeType: string, character?: CharacterConfig) => {
+      // First add/select the node
+      if (onSelectNode) {
+        onSelectNode(nodeName, nodeType, character);
+      }
+      // Then switch to config tab
+      handleTabChange("config");
+    },
+    [onSelectNode, handleTabChange]
   );
 
   // Switch to config tab when a node is selected
@@ -142,14 +171,16 @@ export function UnifiedPanel({
               <PropertiesContent
                 node={selectedNode}
                 onUpdateNode={onUpdateNode}
+                onHighlightCharacter={handleNodeHighlight}
               />
             </div>
           ) : activeTab === "nodes" ? (
             <div className="h-full">
               <NodesContent
-                onAddNode={onAddNode}
                 onOpenTemplates={onOpenTemplates}
                 currentReactFlowNodes={currentReactFlowNodes}
+                onSelectNode={handleNodeSelect}
+                highlightedNode={highlightedNode}
               />
             </div>
           ) : (

@@ -7,7 +7,8 @@ interface CharacterNodeProps {
     label: string;
     configured: boolean;
     characterId?: string;
-    characterName?: string;
+    name?: string;
+    system?: string;
     customPersonality?: string;
     customAdjectives?: string[];
     customTopics?: string[];
@@ -31,9 +32,9 @@ export const CharacterNode: React.FC<CharacterNodeProps> = ({ data }) => {
     ? characterConfigs[data.characterId as keyof typeof characterConfigs]
     : null;
 
-  const displayName = data.characterName || data.label;
+  const displayName = data.name || data.label;
   const personality =
-    data.customPersonality ||
+    data.system ||
     characterConfig?.system ||
     "Character personality not configured";
   const adjectives = data.customAdjectives || characterConfig?.adjectives || [];

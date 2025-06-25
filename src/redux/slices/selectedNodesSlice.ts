@@ -1,4 +1,9 @@
-import { createSlice, PayloadAction, current } from "@reduxjs/toolkit";
+import {
+  createSlice,
+  PayloadAction,
+  current,
+  createSelector,
+} from "@reduxjs/toolkit";
 import { Node } from "@xyflow/react";
 
 // Serializable node interface for Redux storage (keeps id for internal tracking)
@@ -136,7 +141,9 @@ const selectedNodesSlice = createSlice({
       const { nodeId, data } = action.payload;
       const currentAllNodes = current(state.allNodes);
       const currentSelectedNodes = current(state.selectedNodes);
-      const currentSelectedNode = current(state.selectedNode);
+      const currentSelectedNode = state.selectedNode
+        ? current(state.selectedNode)
+        : null;
 
       // Update in allNodes
       const updatedAllNodes = currentAllNodes.map((node) =>
@@ -215,31 +222,30 @@ export const selectLastUpdated = (state: {
   selectedNodes: SelectedNodesState;
 }) => state.selectedNodes.lastUpdated;
 
-// Additional selectors for API data preparation
-export const selectNodesForAPI = (state: {
-  selectedNodes: SelectedNodesState;
-}) => ({
-  allNodes: state.selectedNodes.allNodes.map(nodeToAPI),
-  selectedNodes: state.selectedNodes.selectedNodes.map(nodeToAPI),
-  selectedNode: state.selectedNodes.selectedNode
-    ? nodeToAPI(state.selectedNodes.selectedNode)
-    : null,
-  totalNodes: state.selectedNodes.allNodes.length,
-  selectedCount: state.selectedNodes.selectedNodes.length,
-  lastUpdated: state.selectedNodes.lastUpdated,
-});
+// Memoized selector for API data preparation
+export const selectNodesForAPI = createSelector(
+  [selectAllNodes, selectSelectedNodes, selectSelectedNode, selectLastUpdated],
+  (allNodes, selectedNodes, selectedNode, lastUpdated) => ({
+    allNodes: allNodes.map(nodeToAPI),
+    selectedNodes: selectedNodes.map(nodeToAPI),
+    selectedNode: selectedNode ? nodeToAPI(selectedNode) : null,
+    totalNodes: allNodes.length,
+    selectedCount: selectedNodes.length,
+    lastUpdated: lastUpdated,
+  })
+);
 
-// Selector for nodes by type
-export const selectNodesByType =
-  (nodeType: string) => (state: { selectedNodes: SelectedNodesState }) =>
-    state.selectedNodes.allNodes.filter((node) => node.type === nodeType);
+// Memoized selector for nodes by type
+export const selectNodesByType = (nodeType: string) =>
+  createSelector([selectAllNodes], (allNodes) =>
+    allNodes.filter((node) => node.type === nodeType)
+  );
 
-// Selector for nodes with specific data criteria
-export const selectNodesWithData =
-  (dataKey: string) => (state: { selectedNodes: SelectedNodesState }) =>
-    state.selectedNodes.allNodes.filter(
-      (node) => node.data && node.data[dataKey] !== undefined
-    );
+// Memoized selector for nodes with specific data criteria
+export const selectNodesWithData = (dataKey: string) =>
+  createSelector([selectAllNodes], (allNodes) =>
+    allNodes.filter((node) => node.data && node.data[dataKey] !== undefined)
+  );
 
 // Export the reducer
 export default selectedNodesSlice.reducer;
