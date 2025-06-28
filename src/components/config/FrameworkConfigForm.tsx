@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 import { ChevronDown, ChevronUp, Layers, Info } from "lucide-react";
-import { Checkmark } from "../../../components/Checkmark";
+import { Checkmark } from "../Checkmark";
 import { FrameworkNodeData } from "@/types/nodeData";
 
 interface FrameworkConfigFormProps {

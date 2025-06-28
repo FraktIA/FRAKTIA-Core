@@ -3,6 +3,7 @@ import "./globals.css";
 import WalletProvider from "@/providers/WalletProvider";
 import { headers } from "next/headers";
 import { ReduxProvider } from "@/redux/provider";
+import SidebarShell from "@/components/SidebarShell";
 
 export const metadata: Metadata = {
   title: "FRAKTIΛ | AI-Powered Agents. Zero Code. Full Control.",
@@ -22,7 +23,7 @@ export default async function RootLayout({
       <body className={`antialiased`}>
         <WalletProvider cookies={cookies}>
           <ReduxProvider>
-            <main className="h-full ">{children}</main>
+            <SidebarShell>{children}</SidebarShell>
           </ReduxProvider>
         </WalletProvider>
       </body>

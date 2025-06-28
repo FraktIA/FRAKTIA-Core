@@ -1,20 +1,20 @@
 import React, { useState, useCallback } from "react";
-import { ChevronDown, ChevronUp, FileOutput, Settings } from "lucide-react";
-import { Checkmark } from "../../../components/Checkmark";
-import { OutputNodeData } from "@/types/nodeData";
+import { ChevronDown, ChevronUp, GitBranch, Code } from "lucide-react";
+import { Checkmark } from "../Checkmark";
+import { LogicNodeData } from "@/types/nodeData";
 
-interface OutputConfigFormProps {
-  localNodeData: OutputNodeData;
+interface LogicConfigFormProps {
+  localNodeData: LogicNodeData;
   handleInputChange: (field: string, value: string) => void;
 }
 
-const OutputConfigForm: React.FC<OutputConfigFormProps> = ({
+const LogicConfigForm: React.FC<LogicConfigFormProps> = ({
   localNodeData,
   handleInputChange,
 }) => {
   const [expandedSections, setExpandedSections] = useState({
-    output: true,
-    template: false,
+    logic: true,
+    expression: false,
   });
 
   const toggleSection = useCallback((section: string) => {
@@ -70,56 +70,53 @@ const OutputConfigForm: React.FC<OutputConfigFormProps> = ({
         </span>
       </div>
 
-      {/* Output Type */}
+      {/* Logic Type */}
       <div className="space-y-4">
-        <SectionHeader title="Output Type" icon={FileOutput} section="output" />
+        <SectionHeader title="Logic Type" icon={GitBranch} section="logic" />
 
-        {expandedSections.output && (
+        {expandedSections.logic && (
           <div className="space-y-4 pl-6">
             <div>
               <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                Output Format
+                Condition Type
               </label>
               <select
-                value={String(localNodeData.type || "text")}
-                onChange={(e) => handleInputChange("type", e.target.value)}
+                value={String(localNodeData.condition || "if")}
+                onChange={(e) => handleInputChange("condition", e.target.value)}
                 className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-sm transition-all duration-300"
               >
-                <option value="text">Text</option>
-                <option value="action">Action</option>
-                <option value="webhook">Webhook</option>
-                <option value="file">File</option>
-                <option value="email">Email</option>
-                <option value="notification">Notification</option>
+                <option value="if">If/Then</option>
+                <option value="switch">Switch/Case</option>
+                <option value="loop">Loop</option>
+                <option value="filter">Filter</option>
+                <option value="transform">Transform</option>
               </select>
             </div>
           </div>
         )}
       </div>
 
-      {/* Template */}
+      {/* Expression */}
       <div className="space-y-4">
-        <SectionHeader
-          title="Format Template"
-          icon={Settings}
-          section="template"
-        />
+        <SectionHeader title="Condition" icon={Code} section="expression" />
 
-        {expandedSections.template && (
+        {expandedSections.expression && (
           <div className="space-y-4 pl-6">
             <div>
               <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                Output Template
+                Logic Expression
               </label>
               <textarea
-                value={String(localNodeData.template || "")}
-                onChange={(e) => handleInputChange("template", e.target.value)}
-                placeholder="Output format template..."
+                value={String(localNodeData.expression || "")}
+                onChange={(e) =>
+                  handleInputChange("expression", e.target.value)
+                }
+                placeholder="Enter condition logic..."
                 rows={4}
                 className="w-full p-3 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 resize-none font-mono text-sm"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Use variables like {"{{variable}}"} to dynamically insert data
+                Example: user.age {">"}= 18 &amp;&amp; user.verified === true
               </p>
             </div>
           </div>
@@ -129,4 +126,4 @@ const OutputConfigForm: React.FC<OutputConfigFormProps> = ({
   );
 };
 
-export default OutputConfigForm;
+export default LogicConfigForm;

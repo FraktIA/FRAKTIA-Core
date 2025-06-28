@@ -1,6 +1,6 @@
 import React, { useState, useCallback, memo } from "react";
 import { ChevronDown, ChevronUp, Brain, Settings, Key } from "lucide-react";
-import { Checkmark } from "../../../components/Checkmark";
+import { Checkmark } from "../Checkmark";
 import { ModelNodeData } from "@/types/nodeData";
 
 interface ModelConfigFormProps {

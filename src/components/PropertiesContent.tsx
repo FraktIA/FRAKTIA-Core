@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useCallback, useEffect } from "react";
-import FrameworkConfigForm from "@/app/components/config/FrameworkConfigForm";
-import VoiceConfigForm from "@/app/components/config/VoiceConfigForm";
-import ModelConfigForm from "@/app/components/config/ModelConfigForm";
-import PluginConfigForm from "@/app/components/config/PluginConfigForm";
-import LogicConfigForm from "@/app/components/config/LogicConfigForm";
-import OutputConfigForm from "@/app/components/config/OutputConfigForm";
-import CharacterConfigForm from "@/app/components/config/CharacterConfigForm";
+import FrameworkConfigForm from "@/components/config/FrameworkConfigForm";
+import VoiceConfigForm from "@/components/config/VoiceConfigForm";
+import ModelConfigForm from "@/components/config/ModelConfigForm";
+import PluginConfigForm from "@/components/config/PluginConfigForm";
+import LogicConfigForm from "@/components/config/LogicConfigForm";
+import OutputConfigForm from "@/components/config/OutputConfigForm";
+import CharacterConfigForm from "@/components/config/CharacterConfigForm";
 import { Node } from "@xyflow/react";
 import {
   CharacterNodeData,

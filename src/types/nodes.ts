@@ -10,13 +10,15 @@ export interface CharacterConfig {
       model: string;
     };
   };
-  messageExamples?: Array<Array<{
-    name: string;
-    content: {
-      text: string;
-      action?: string;
-    };
-  }>>;
+  messageExamples?: Array<
+    Array<{
+      name: string;
+      content: {
+        text: string;
+        action?: string;
+      };
+    }>
+  >;
   postExamples?: string[];
   adjectives?: string[];
   topics?: string[];
@@ -32,19 +34,18 @@ export interface CharacterNode {
   id: string;
   name: string;
   type: "character";
-  
+
   // Character configuration
   config: {
     // Character selection
-    characterId: string;
     characterName: string;
-    
+
     // Character customization
     customBio?: string[];
     customPersonality?: string;
     customAdjectives?: string[];
     customTopics?: string[];
-    
+
     // Voice settings
     voice?: {
       model: string;
@@ -52,7 +53,7 @@ export interface CharacterNode {
       speed?: number;
       pitch?: number;
     };
-    
+
     // Behavior settings
     behavior: {
       temperature: number;
@@ -60,15 +61,7 @@ export interface CharacterNode {
       responseStyle: "casual" | "formal" | "creative" | "technical";
       conversationLength: "short" | "medium" | "long";
     };
-    
-    // Memory and context
-    memory: {
-      enabled: boolean;
-      maxContextLength: number;
-      rememberUserPreferences: boolean;
-      conversationHistory: boolean;
-    };
-    
+
     // Plugin configuration
     plugins: {
       enabled: string[];
@@ -76,7 +69,7 @@ export interface CharacterNode {
       customConfig?: Record<string, unknown>;
     };
   };
-  
+
   // Node state
   state: {
     isConfigured: boolean;
@@ -85,13 +78,13 @@ export interface CharacterNode {
     conversationCount: number;
     userSatisfaction: number;
   };
-  
+
   // Connection points
   connections: {
     inputs: string[];
     outputs: string[];
   };
-  
+
   // Metadata
   metadata: {
     createdAt: Date;
@@ -119,12 +112,12 @@ export interface ElizaOSNode {
   id: string;
   name: string;
   type: "elizaos";
-  
+
   // Framework configuration
   config: {
     // Character configuration using character file options
     character: CharacterConfig;
-    
+
     // System settings
     system: {
       temperature: number; // 0-2
@@ -135,7 +128,7 @@ export interface ElizaOSNode {
       endpoint?: string;
       secrets?: Record<string, string>;
     };
-    
+
     // Voice settings
     voice?: {
       model: string;
@@ -143,7 +136,7 @@ export interface ElizaOSNode {
       speed?: number;
       pitch?: number;
     };
-    
+
     // Memory and context management
     memory: {
       enabled: boolean;
@@ -151,7 +144,7 @@ export interface ElizaOSNode {
       persistenceType: "session" | "file" | "database";
       autoCleanup: boolean;
     };
-    
+
     // Conversation flow settings
     conversation: {
       maxTurns: number;
@@ -160,10 +153,10 @@ export interface ElizaOSNode {
       fallbackResponses: string[];
     };
   };
-  
+
   // Plugin system - using actual plugin names from character files
   plugins: string[];
-  
+
   // Node state
   state: {
     isConfigured: boolean;
@@ -176,13 +169,13 @@ export interface ElizaOSNode {
       totalInteractions: number;
     };
   };
-  
+
   // Connection points
   connections: {
     inputs: string[];
     outputs: string[];
   };
-  
+
   // Metadata
   metadata: {
     createdAt: Date;
@@ -197,7 +190,11 @@ export interface ElizaOSNode {
 export type ElizaOSNodeType = "basic" | "advanced" | "enterprise";
 export type ElizaOSProvider = "openai" | "anthropic" | "local" | "custom";
 export type ElizaOSMemoryType = "session" | "file" | "database";
-export type ElizaOSStressResponse = "calm" | "anxious" | "aggressive" | "withdrawn";
+export type ElizaOSStressResponse =
+  | "calm"
+  | "anxious"
+  | "aggressive"
+  | "withdrawn";
 
 // Configuration validation
 export interface ElizaOSValidation {

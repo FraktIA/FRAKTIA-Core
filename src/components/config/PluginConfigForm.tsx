@@ -10,7 +10,7 @@ import {
   Clock,
   Target,
 } from "lucide-react";
-import { Checkmark } from "../../../components/Checkmark";
+import { Checkmark } from "../Checkmark";
 import { PluginNodeData } from "@/types/nodeData";
 
 interface PluginConfigFormProps {

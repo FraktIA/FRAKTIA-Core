@@ -4,9 +4,19 @@ import clientPromise from "@/lib/mongodb";
 import { APINode } from "@/redux/slices/selectedNodesSlice";
 
 export interface AgentData {
+  id?: string;
   nodes: APINode[];
   name?: string;
   description?: string;
+  avatarUrl?: string;
+  roomId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UserDocument {
+  address: string;
+  agents?: AgentData[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,9 +61,17 @@ interface ApiAgentResponse {
   success: boolean;
   data?: {
     id?: string;
-    characterPath?: string;
-    characterJson?: ElizaCharacter;
-    createdAt?: string;
+    character?: {
+      name?: string;
+      bio?: string;
+      settings?: object;
+      system?: string;
+      style?: object;
+      lore?: string[];
+      messageExamples?: string[];
+      topics?: string[];
+      plugins?: string[];
+    };
     [key: string]: unknown;
   };
 }
@@ -307,12 +325,17 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
 }
 
 export async function deployAgentAction(
+  address: string,
   nodes: APINode[],
   agentName?: string,
   description?: string
 ): Promise<{ success: boolean; agentId?: string; error?: string }> {
   try {
     // Validate input data
+    if (!address || !address.trim()) {
+      return { success: false, error: "Address is required for deployment" };
+    }
+
     if (!nodes || nodes.length === 0) {
       return { success: false, error: "No nodes provided for deployment" };
     }
@@ -323,9 +346,19 @@ export async function deployAgentAction(
       data: node.data,
     }));
 
-    // const client = await clientPromise;
-    // const db = client.db("agents"); // Use 'agents' database
-    // const collection = db.collection("deployments");
+    const client = await clientPromise;
+    const db = client.db("Fraktia");
+    const collection = db.collection<UserDocument>("users");
+
+    // Check if user exists
+    const existingUser = await collection.findOne({ address: address });
+    if (!existingUser) {
+      return {
+        success: false,
+        error:
+          "User address not found. Please ensure the address is registered.",
+      };
+    }
 
     const agentData: AgentData = {
       nodes: serializedNodes,
@@ -334,36 +367,73 @@ export async function deployAgentAction(
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    // console.log(JSON.stringify(agentData, null, 2), "agentData");
 
-    // Transform to Eliza format
+    // Transform to Eliza format for API deployment
     const formattedResult = transformToElizaFormat(agentData);
     console.log(JSON.stringify(formattedResult, null, 2), "formattedResult");
 
-    // const { success, data } = await createAgentOnServer(formattedResult);
-    // console.log("data", data, "success", success);
-    // Simulate API delay for testing modals (3 seconds)
-    console.log("Starting deployment simulation...");
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    console.log("Deployment simulation completed!");
-    // Insert the agent data into MongoDB
-    // const result = await collection.insertOne(agentData);
-    return {
-      success: true,
-      agentId: "mocked-agent-id", // result.insertedId.toString(),
+    // First, deploy to ElizaOS server and get the agent ID
+    const {
+      success: serverSuccess,
+      data: serverData,
+      error: serverError,
+    } = await createAgentOnServer(formattedResult);
+
+    if (!serverSuccess || !serverData?.id) {
+      return {
+        success: false,
+        error: serverError || "Failed to deploy agent to ElizaOS server",
+      };
+    }
+
+    const elizaAgentId = serverData.id;
+    console.log("Agent deployed to ElizaOS server with ID:", elizaAgentId);
+
+    // Create agent data with the ElizaOS agent ID
+    const agentWithId = {
+      ...agentData,
+      id: elizaAgentId, // Use the ID from ElizaOS instead of generating our own
+      // roomId: `room_${elizaAgentId}_${Date.now()}`, // Generate a unique room ID for the agent
     };
 
-    // if (result.acknowledged) {
-    //   return {
-    //     success: true,
-    //     agentId: result.insertedId.toString(),
-    //   };
-    // } else {
-    //   return {
-    //     success: false,
-    //     error: "Failed to save agent to database",
-    //   };
-    // }
+    // Add the agent to the user's agents array (or create the field if it doesn't exist)
+    const updateResult = await collection.updateOne(
+      { address: address },
+      {
+        $push: {
+          agents: agentWithId,
+        },
+        $setOnInsert: {
+          createdAt: new Date(),
+        },
+        $set: {
+          updatedAt: new Date(),
+        },
+      },
+      { upsert: false } // Don't create new user, only update existing
+    );
+
+    if (updateResult.modifiedCount > 0) {
+      console.log(`Agent deployed successfully for address: ${address}`);
+      console.log("Agent saved to database with ElizaOS ID:", elizaAgentId);
+
+      return {
+        success: true,
+        agentId: elizaAgentId, // Return the ElizaOS agent ID
+      };
+    } else {
+      // If database save fails, we should ideally clean up the ElizaOS agent
+      // For now, we'll log this as a warning since the agent exists on ElizaOS
+      console.warn(
+        `Agent ${elizaAgentId} deployed to ElizaOS but failed to save to database for address: ${address}`
+      );
+
+      return {
+        success: false,
+        error:
+          "Failed to save agent to user profile. Agent deployed to ElizaOS but not linked to user.",
+      };
+    }
   } catch (error) {
     console.error("Error deploying agent:", error);
     return {
@@ -410,13 +480,12 @@ export async function createAgentOnServer(agentData: ElizaCharacter): Promise<{
   error?: string;
 }> {
   try {
-    // Transform to Eliza format
-
-    // Send to API
+    // Send to API using the correct endpoint and body structure
     const response = await fetch("http://localhost:3001/api/agents", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Accept: "application/json",
       },
       body: JSON.stringify({
         characterJson: agentData,
@@ -433,9 +502,11 @@ export async function createAgentOnServer(agentData: ElizaCharacter): Promise<{
       };
     }
 
-    const result = await response.json();
+    const result: ApiAgentResponse = await response.json();
+    console.log(result, "result from server");
+
     return {
-      success: true,
+      success: result.success || true, // Assume success if response is 201
       data: result.data,
     };
   } catch (error) {
@@ -446,6 +517,45 @@ export async function createAgentOnServer(agentData: ElizaCharacter): Promise<{
         error instanceof Error
           ? error.message
           : "Unknown error occurred during agent creation",
+    };
+  }
+}
+
+export async function getUserAgentsAction(address: string): Promise<{
+  success: boolean;
+  agents?: AgentData[];
+  error?: string;
+}> {
+  try {
+    if (!address || !address.trim()) {
+      return { success: false, error: "Address is required" };
+    }
+
+    const client = await clientPromise;
+    const db = client.db("Fraktia");
+    const collection = db.collection<UserDocument>("users");
+
+    const user = await collection.findOne({ address: address });
+
+    if (!user) {
+      return {
+        success: false,
+        error: "User not found",
+      };
+    }
+
+    return {
+      success: true,
+      agents: user.agents || [],
+    };
+  } catch (error) {
+    console.error("Error fetching user agents:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unknown error occurred while fetching user agents",
     };
   }
 }

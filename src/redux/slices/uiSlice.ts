@@ -11,6 +11,7 @@ interface UIState {
   selectedNodeId: string | null;
   activeModal: string | null;
   showWalletDropdown: boolean;
+  agentsRefreshTrigger: number; // Trigger to refresh agents list
   notifications: Array<{
     id: string;
     type: "success" | "error" | "warning" | "info";
@@ -23,6 +24,12 @@ interface UIState {
     propertiesPanel: number;
     sidebar: number;
   };
+  // Agent editing state
+  isEditingAgent: boolean;
+  editingAgentDetails: {
+    id: string;
+    name: string;
+  } | null;
   // Agent Builder Flow
   agentBuilderFlow: {
     currentStep: number;
@@ -33,16 +40,17 @@ interface UIState {
 }
 
 const initialState: UIState = {
-  showNodesPanel: true,
+  showNodesPanel: false,
   activeMenu: "Arena",
   showPropertiesPanel: false,
-  showSidebar: true,
+  showSidebar: false,
   isLoading: false,
   selectedNodeId: null,
   activeModal: null,
   activeNav: "Framework",
   nodesPanelCategory: "Framework", // Initialize with Framework
   showWalletDropdown: false,
+  agentsRefreshTrigger: 0, // Initialize refresh trigger
   notifications: [],
   theme: "dark",
   panelSizes: {
@@ -57,6 +65,9 @@ const initialState: UIState = {
     completedSteps: [],
     steps: ["Framework", "AI Model", "Voice", "Character", "Plugins"],
   },
+  // Agent editing state
+  isEditingAgent: false,
+  editingAgentDetails: null,
 };
 
 const uiSlice = createSlice({
@@ -243,6 +254,30 @@ const uiSlice = createSlice({
       state.agentBuilderFlow.steps = action.payload;
       state.agentBuilderFlow.totalSteps = action.payload.length;
     },
+
+    // Refresh agents list
+    triggerAgentsRefresh: (state) => {
+      state.agentsRefreshTrigger = Date.now();
+    },
+
+    // Agent editing actions
+    setEditingAgent: (
+      state,
+      action: PayloadAction<{ id: string; name: string } | null>
+    ) => {
+      if (action.payload) {
+        state.isEditingAgent = true;
+        state.editingAgentDetails = action.payload;
+      } else {
+        state.isEditingAgent = false;
+        state.editingAgentDetails = null;
+      }
+    },
+
+    clearEditingMode: (state) => {
+      state.isEditingAgent = false;
+      state.editingAgentDetails = null;
+    },
   },
 });
 
@@ -275,6 +310,9 @@ export const {
   completeStep,
   resetAgentBuilderFlow,
   setAgentBuilderSteps,
+  triggerAgentsRefresh,
+  setEditingAgent,
+  clearEditingMode,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;
@@ -303,3 +341,11 @@ export const selectNodesPanelCategory = (state: { ui: UIState }) =>
   state.ui.nodesPanelCategory;
 export const selectAgentBuilderFlow = (state: { ui: UIState }) =>
   state.ui.agentBuilderFlow;
+export const selectAgentsRefreshTrigger = (state: { ui: UIState }) =>
+  state.ui.agentsRefreshTrigger;
+
+// Agent editing selectors
+export const selectIsEditingAgent = (state: { ui: UIState }) =>
+  state.ui.isEditingAgent;
+export const selectEditingAgentDetails = (state: { ui: UIState }) =>
+  state.ui.editingAgentDetails;

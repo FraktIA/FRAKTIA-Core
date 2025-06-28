@@ -1,20 +1,20 @@
 import React, { useState, useCallback } from "react";
-import { ChevronDown, ChevronUp, Mic, Settings } from "lucide-react";
-import { Checkmark } from "../../../components/Checkmark";
-import { VoiceNodeData } from "@/types/nodeData";
+import { ChevronDown, ChevronUp, FileOutput, Settings } from "lucide-react";
+import { Checkmark } from "../Checkmark";
+import { OutputNodeData } from "@/types/nodeData";
 
-interface VoiceConfigFormProps {
-  localNodeData: VoiceNodeData;
+interface OutputConfigFormProps {
+  localNodeData: OutputNodeData;
   handleInputChange: (field: string, value: string) => void;
 }
 
-const VoiceConfigForm: React.FC<VoiceConfigFormProps> = ({
+const OutputConfigForm: React.FC<OutputConfigFormProps> = ({
   localNodeData,
   handleInputChange,
 }) => {
   const [expandedSections, setExpandedSections] = useState({
-    voice: true,
-    settings: false,
+    output: true,
+    template: false,
   });
 
   const toggleSection = useCallback((section: string) => {
@@ -70,77 +70,57 @@ const VoiceConfigForm: React.FC<VoiceConfigFormProps> = ({
         </span>
       </div>
 
-      {/* Voice Selection */}
+      {/* Output Type */}
       <div className="space-y-4">
-        <SectionHeader title="Voice Selection" icon={Mic} section="voice" />
+        <SectionHeader title="Output Type" icon={FileOutput} section="output" />
 
-        {expandedSections.voice && (
+        {expandedSections.output && (
           <div className="space-y-4 pl-6">
             <div>
               <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                Voice Model
+                Output Format
               </label>
               <select
-                value={String(localNodeData.voice || "male")}
-                onChange={(e) => handleInputChange("voice", e.target.value)}
+                value={String(localNodeData.type || "text")}
+                onChange={(e) => handleInputChange("type", e.target.value)}
                 className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-sm transition-all duration-300"
               >
-                <option value="male">en_US-hfc_male-medium</option>
-                <option value="female">en_US-hfc_female-medium</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                Language
-              </label>
-              <select
-                value={String(localNodeData.language || "en")}
-                onChange={(e) => handleInputChange("language", e.target.value)}
-                className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-sm transition-all duration-300"
-              >
-                <option value="en">English</option>
-                <option value="es">Spanish</option>
-                <option value="fr">French</option>
-                <option value="de">German</option>
-                <option value="it">Italian</option>
-                <option value="pt">Portuguese</option>
-                <option value="zh">Chinese</option>
-                <option value="ja">Japanese</option>
+                <option value="text">Text</option>
+                <option value="action">Action</option>
+                <option value="webhook">Webhook</option>
+                <option value="file">File</option>
+                <option value="email">Email</option>
+                <option value="notification">Notification</option>
               </select>
             </div>
           </div>
         )}
       </div>
 
-      {/* Voice Settings */}
+      {/* Template */}
       <div className="space-y-4">
         <SectionHeader
-          title="Voice Settings"
+          title="Format Template"
           icon={Settings}
-          section="settings"
+          section="template"
         />
 
-        {expandedSections.settings && (
+        {expandedSections.template && (
           <div className="space-y-4 pl-6">
             <div>
               <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                Speed ({localNodeData.speed || 1.0})
+                Output Template
               </label>
-              <input
-                type="range"
-                min="0.25"
-                max="4.0"
-                step="0.25"
-                value={localNodeData.speed || 1.0}
-                onChange={(e) => handleInputChange("speed", e.target.value)}
-                className="w-full accent-primary"
+              <textarea
+                value={String(localNodeData.template || "")}
+                onChange={(e) => handleInputChange("template", e.target.value)}
+                placeholder="Output format template..."
+                rows={4}
+                className="w-full p-3 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 resize-none font-mono text-sm"
               />
-              <div className="flex justify-between text-xs text-white/50 mt-1">
-                <span>Slow</span>
-                <span>Normal</span>
-                <span>Fast</span>
-              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Use variables like {"{{variable}}"} to dynamically insert data
+              </p>
             </div>
           </div>
         )}
@@ -149,4 +129,4 @@ const VoiceConfigForm: React.FC<VoiceConfigFormProps> = ({
   );
 };
 
-export default VoiceConfigForm;
+export default OutputConfigForm;

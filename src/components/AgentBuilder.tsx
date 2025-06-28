@@ -14,6 +14,10 @@ import {
   openModal,
   closeModal,
   selectActiveModal,
+  triggerAgentsRefresh,
+  goToStep,
+  selectIsEditingAgent,
+  clearEditingMode,
 } from "@/redux/slices/uiSlice";
 
 import {
@@ -44,12 +48,12 @@ import { characterConfigs } from "@/constants/characters";
 import { CharacterConfig } from "@/types/nodes";
 import Image from "next/image";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { selectActiveMenu } from "@/redux/slices/uiSlice";
 import { selectNodesForAPI } from "@/redux/slices/selectedNodesSlice";
 import { deployAgentAction } from "@/actions/deploy";
 import { useWindowSize } from "@/hooks/useWindowSize";
 import { useAgentBuilderSync } from "@/hooks/useNodesSync";
 import Modal from "@/components/Modal";
+import { useAppKitAccount } from "@reown/appkit/react";
 
 const nodeTypes = {
   framework: FrameworkNode,
@@ -151,22 +155,9 @@ const getDefaultNodeData = (nodeType: string, nodeName: string) => {
   switch (nodeType) {
     case "character":
       const characterConfig = getCharacterConfig(nodeName);
-      // Get the character key from the nodeName
-      const getCharacterKey = (name: string): string => {
-        const keyMap: Record<string, string> = {
-          "AI Assistant": "aiAssistant",
-          "Creative Companion": "creativeCompanion",
-          "Technical Mentor": "technicalMentor",
-          "Empathetic Friend": "empatheticFriend",
-          "Gaming Buddy": "gamingBuddy",
-          "Casey Black": "caseyBlack",
-        };
-        return keyMap[name] || "";
-      };
 
       return {
         ...baseData,
-        characterId: getCharacterKey(nodeName),
         name: characterConfig ? characterConfig.name : nodeName,
         system: characterConfig ? characterConfig.system : "",
         bio: characterConfig ? characterConfig.bio : [],
@@ -362,6 +353,7 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
   const dispatch = useAppDispatch();
   const agentBuilderFlow = useAppSelector(selectAgentBuilderFlow);
   const { width, height } = useWindowSize();
+  const { address } = useAppKitAccount();
   const isMobile = width < 768; // Tailwind's md breakpoint
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -371,9 +363,32 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
   const [deploymentMessage, setDeploymentMessage] = useState<string | null>(
     null
   );
-  const activeMenu = useAppSelector(selectActiveMenu);
   const apiNodesData = useAppSelector(selectNodesForAPI);
   const activeModal = useAppSelector(selectActiveModal);
+  const isEditingAgent = useAppSelector(selectIsEditingAgent);
+
+  // Add debug logging
+  useEffect(() => {
+    console.log("AgentBuilder - isEditingAgent:", isEditingAgent);
+    console.log(
+      "AgentBuilder - localStorage agent nodes:",
+      localStorage.getItem("editingAgentNodes") ? "exists" : "not found"
+    );
+    console.log(
+      "AgentBuilder - current step:",
+      agentBuilderFlow.currentStep,
+      "total steps:",
+      agentBuilderFlow.totalSteps
+    );
+    console.log(
+      "AgentBuilder - isLastStep:",
+      agentBuilderFlow.currentStep === agentBuilderFlow.totalSteps
+    );
+  }, [
+    isEditingAgent,
+    agentBuilderFlow.currentStep,
+    agentBuilderFlow.totalSteps,
+  ]);
 
   // Add the useReactFlow hook
   const reactFlow = useReactFlow();
@@ -389,21 +404,107 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
 
   // Initialize Redux sync
   const {
-    handleNodesChange: syncNodesChange,
     handleSelectionChange: syncSelectionChange,
     handleNodeUpdate: syncNodeUpdate,
     prepareForAPISubmission,
   } = useAgentBuilderSync();
 
-  // Sync nodes to Redux whenever they change
+  // Load agent nodes when editing mode is enabled
   useEffect(() => {
-    syncNodesChange(nodes);
-  }, [nodes, syncNodesChange]);
+    if (isEditingAgent) {
+      try {
+        const storedNodes = localStorage.getItem("editingAgentNodes");
+        if (storedNodes) {
+          const apiNodes = JSON.parse(storedNodes);
+          console.log("Loading agent nodes for editing:", apiNodes);
 
-  // Sync selected node to Redux whenever it changes
-  useEffect(() => {
-    syncSelectionChange({ nodes: selectedNode ? [selectedNode] : [] });
-  }, [selectedNode, syncSelectionChange]);
+          // Convert API nodes to ReactFlow nodes
+          const reactFlowNodes = apiNodes.map(
+            (
+              apiNode: { type: string; data: Record<string, unknown> },
+              index: number
+            ) => {
+              const getNodePosition = (nodeType: string, index: number) => {
+                const typePositions: {
+                  [key: string]: { x: number; y: number };
+                } = {
+                  framework: { x: 0, y: 0 },
+                  model: { x: 450, y: 150 },
+                  voice: { x: 100, y: 550 },
+                  character: { x: 850, y: 150 },
+                  plugin: { x: 470, y: 659 },
+                };
+                return (
+                  typePositions[nodeType] || { x: index * 200, y: index * 100 }
+                );
+              };
+
+              return {
+                id: `${apiNode.type}-${Date.now()}-${index}`,
+                type: apiNode.type || "default",
+                position: getNodePosition(apiNode.type || "default", index),
+                data: {
+                  ...apiNode.data,
+                  label:
+                    apiNode.data.label ||
+                    apiNode.data.name ||
+                    `${apiNode.type} Node`,
+                  configured: true,
+                },
+                selected: false,
+              };
+            }
+          );
+
+          setNodes(reactFlowNodes);
+
+          // Create edges to connect nodes (framework node connects to all others)
+          const frameworkNode = reactFlowNodes.find(
+            (node: Node) => node.type === "framework"
+          );
+          if (frameworkNode) {
+            const newEdges: Edge[] = [];
+            reactFlowNodes.forEach((node: Node) => {
+              if (node.type !== "framework") {
+                newEdges.push({
+                  id: `e-${frameworkNode.id}-${node.id}`,
+                  source: frameworkNode.id,
+                  target: node.id,
+                  type: "smoothstep",
+                  animated: true,
+                });
+              }
+            });
+            setEdges(newEdges);
+          }
+
+          // Set to last step when loading a saved agent - do this after nodes are set
+          setTimeout(() => {
+            console.log("Setting to last step for editing mode");
+            dispatch(goToStep(agentBuilderFlow.totalSteps));
+          }, 50);
+
+          // Fit view to show all loaded nodes
+          setTimeout(() => {
+            reactFlow.fitView({ padding: 0.1 });
+          }, 100);
+
+          // Clear the localStorage data after loading
+          localStorage.removeItem("editingAgentNodes");
+          console.log("Cleared localStorage after loading nodes");
+        }
+      } catch (error) {
+        console.error("Error loading agent nodes:", error);
+      }
+    }
+  }, [
+    isEditingAgent,
+    setNodes,
+    setEdges,
+    reactFlow,
+    dispatch,
+    agentBuilderFlow.totalSteps,
+  ]);
 
   const getPositionsByStep = useCallback(() => {
     if (isMobile) {
@@ -504,6 +605,7 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
       });
 
       const result = await deployAgentAction(
+        address as string,
         apiNodesData.allNodes,
         characterName, // Use character name instead of timestamp
         "AI Agent created with node builder"
@@ -513,8 +615,12 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
       dispatch(closeModal());
 
       if (result.success) {
+        // Clear editing mode after successful deployment
+        dispatch(clearEditingMode());
         // Open success modal
         dispatch(openModal("agentCreated"));
+        // Trigger refresh of agents list in sidebar
+        dispatch(triggerAgentsRefresh());
         setDeploymentMessage(
           `✅ Agent deployed successfully! ID: ${result.agentId}`
         );
@@ -561,34 +667,8 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
   };
 
   const handlePreviousStep = () => {
-    // Get the node that was added for the current step
-    const currentStepName =
-      agentBuilderFlow.steps[agentBuilderFlow.currentStep - 1];
-    const nodeNameToRemove = defaultNodeForStep[currentStepName];
-
-    if (nodeNameToRemove) {
-      const nodeToRemove = nodes.find((n) => n.data.label === nodeNameToRemove);
-
-      if (nodeToRemove) {
-        // Remove the node and its connected edges
-        setNodes((nds) => nds.filter((node) => node.id !== nodeToRemove.id));
-        setEdges((eds) =>
-          eds.filter(
-            (edge) =>
-              edge.source !== nodeToRemove.id && edge.target !== nodeToRemove.id
-          )
-        );
-
-        // If the removed node was selected, deselect it
-        if (selectedNode?.id === nodeToRemove.id) {
-          setSelectedNode(null);
-        }
-      }
-    }
-
-    // Navigate to the previous step
+    // Navigate to the previous step - node management will be handled by useEffect
     dispatch(previousStep());
-    // Node selection will be handled by useEffect
   };
 
   const isFirstStep = agentBuilderFlow.currentStep === 1;
@@ -833,6 +913,11 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
   }, [width, height, nodes.length, initializeView]);
 
   useEffect(() => {
+    // Skip step-based node management only during initial agent loading (when we have stored agent nodes)
+    const isInitialAgentLoading =
+      isEditingAgent && localStorage.getItem("editingAgentNodes");
+    if (isInitialAgentLoading) return;
+
     const currentStepName =
       agentBuilderFlow.steps[agentBuilderFlow.currentStep - 1];
     if (!currentStepName) return;
@@ -934,10 +1019,16 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
     setNodes,
     setEdges,
     setSelectedNode,
+    isEditingAgent,
   ]);
 
   // Handle step changes from sidebar navigation - remove nodes above the selected step
   useEffect(() => {
+    // Skip step-based node management only during initial agent loading (when we have stored agent nodes)
+    const isInitialAgentLoading =
+      isEditingAgent && localStorage.getItem("editingAgentNodes");
+    if (isInitialAgentLoading) return;
+
     const currentStep = agentBuilderFlow.currentStep;
     const totalSteps = agentBuilderFlow.totalSteps;
 
@@ -996,25 +1087,12 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
     setNodes,
     setEdges,
     selectedNode,
+    isEditingAgent,
   ]);
 
   return (
     <div className=" w-full flex  flex-col  bg-bg lg:px-5 pt-5 rounded-tl-[20px] relative h-full">
-      <div className="flex  mx-3 lg:mx-0  justify-between items-start">
-        <div className="max-w-[260px] font-light flex flex-col gap-2">
-          <div className="flex w-max h-max items-center gap-2">
-            <span className="text-base lg:text-2xl text-primary font-light">
-              {activeMenu}
-            </span>
-            <span className="w-2 h-2  animate-pulse   bg-primary rounded-full"></span>
-          </div>
-
-          <p className="text-xs text-white/70">
-            <span className="font-medium">Select</span> components{" "}
-            <span className="font-medium">to</span> configure and build your
-            agent
-          </p>
-        </div>
+      <div className="flex  mx-3 lg:mx-0  justify-end items-start">
         <div className="flex flex-col items-end gap-3.5">
           <p className="text-white relative z-50 top-12 right-0 lg:right-0 lg:top-0 bg-dark text-xs w-[90px] h-[31px] rounded-[10px] flex justify-center items-center">
             Step {agentBuilderFlow.currentStep} of{" "}
@@ -1044,7 +1122,11 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
               <p className="text-xs text-[#1c1c1c]">
                 {isLastStep
                   ? isDeploying
-                    ? "Deploying..."
+                    ? isEditingAgent
+                      ? "Re-deploying..."
+                      : "Deploying..."
+                    : isEditingAgent
+                    ? "Re-deploy"
                     : "Deploy"
                   : "Next"}
               </p>

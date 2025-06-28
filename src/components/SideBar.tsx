@@ -11,10 +11,14 @@ import {
   setShowWalletDropdown,
   toggleWalletDropdown,
   goToStep,
+  selectAgentsRefreshTrigger,
 } from "@/redux/slices/uiSlice";
 import { useAppKitAccount, useDisconnect } from "@reown/appkit/react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getAgents } from "@/actions/user";
+import { createChatroom } from "@/actions/agent";
 
 type NodePanelProps = {
   sidebarOpen: boolean;
@@ -135,23 +139,56 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
   // const arenaOpen = activeMenu === "Arena";
   const [agentsOpen, setAgentsOpen] = useState(false);
   const [arenaOpen, setArenaOpen] = useState(false);
-  const { isConnected } = useAppKitAccount();
-
-  // Sync dropdown state with activeMenu
-  useEffect(() => {
-    if (activeMenu === "Agents") {
-      setAgentsOpen(true);
-      setArenaOpen(false);
-    } else if (activeMenu === "Arena") {
-      setArenaOpen(true);
-      setAgentsOpen(false);
-    }
-  }, [activeMenu]);
-  const address = "0x8b315372696Ba1aaB397684018f7C33C033187E9";
+  const [userAgents, setUserAgents] = useState<
+    Array<{
+      id: string;
+      name: string;
+      avatarUrl: string;
+      roomId?: string;
+    }>
+  >([]);
+  const [loadingAgents, setLoadingAgents] = useState(false);
+  const [creatingRoom, setCreatingRoom] = useState<string | null>(null);
+  const { isConnected, address } = useAppKitAccount();
+  const router = useRouter();
+  const agentsRefreshTrigger = useAppSelector(selectAgentsRefreshTrigger);
+  // const address = "0x8b315372696Ba1aaB397684018f7C33C033187E9";
   const { disconnect } = useDisconnect();
   const dispatch = useAppDispatch();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { showWalletDropdown } = useAppSelector((state) => state.ui);
+
+  const handleAgentClick = async (agentId: string) => {
+    if (!address) {
+      console.error("User address not available");
+      return;
+    }
+
+    try {
+      setCreatingRoom(agentId);
+
+      // Create or get existing chatroom
+      const result = await createChatroom({
+        agentId,
+        userAddress: address,
+      });
+
+      if (result.success && result.roomId) {
+        // Navigate to the agent page
+        router.push(`/agent/${agentId}?room=${result.roomId}`);
+      } else {
+        console.error("Failed to create/get chatroom:", result.error);
+        // Still navigate even if room creation failed - let the agent page handle it
+        router.push(`/agent/${agentId}`);
+      }
+    } catch (error) {
+      console.error("Error handling agent click:", error);
+      // Still navigate even if error occurred
+      router.push(`/agent/${agentId}`);
+    } finally {
+      setCreatingRoom(null);
+    }
+  };
 
   const setNodePanel = (item: string) => {
     dispatch(setShowNodesPanel(true));
@@ -172,6 +209,15 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
       dispatch(setShowWalletDropdown(false));
     }
   };
+  const handleWalletClick = () => {
+    // if (!isConnected) {
+    //   // If not connected, directly open the connect modal
+    //   open();
+    // } else {
+    // If connected, show the dropdown
+    dispatch(toggleWalletDropdown());
+    // }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -190,15 +236,70 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
     };
   }, [dispatch]);
 
-  const handleWalletClick = () => {
-    // if (!isConnected) {
-    //   // If not connected, directly open the connect modal
-    //   open();
-    // } else {
-    // If connected, show the dropdown
-    dispatch(toggleWalletDropdown());
-    // }
-  };
+  // Sync dropdown state with activeMenu
+  useEffect(() => {
+    if (activeMenu === "Agents") {
+      setAgentsOpen(true);
+      setArenaOpen(false);
+    } else if (activeMenu === "Arena") {
+      setArenaOpen(true);
+      setAgentsOpen(false);
+    }
+  }, [activeMenu]);
+
+  // Fetch user agents when connected
+  useEffect(() => {
+    const fetchUserAgents = async () => {
+      if (isConnected && address) {
+        setLoadingAgents(true);
+        try {
+          const result = await getAgents(address);
+          if (result.success) {
+            setUserAgents(result.agents || []);
+          } else {
+            setUserAgents([]);
+          }
+        } catch (error) {
+          console.error("Error fetching agents:", error);
+          setUserAgents([]);
+        } finally {
+          setLoadingAgents(false);
+        }
+      } else {
+        setUserAgents([]);
+      }
+    };
+
+    fetchUserAgents();
+  }, [isConnected, address]);
+
+  // Refresh agents when triggered by successful deployment
+  useEffect(() => {
+    const fetchUserAgents = async () => {
+      if (isConnected && address && agentsRefreshTrigger > 0) {
+        setLoadingAgents(true);
+        try {
+          const result = await getAgents(address);
+          if (result.success) {
+            setUserAgents(result.agents || []);
+          } else {
+            console.error("Failed to fetch agents:", result.error);
+            setUserAgents([]);
+          }
+        } catch (error) {
+          console.error("Error fetching agents:", error);
+          setUserAgents([]);
+        } finally {
+          setLoadingAgents(false);
+        }
+      }
+    };
+
+    if (agentsRefreshTrigger > 0) {
+      fetchUserAgents();
+    }
+  }, [agentsRefreshTrigger, isConnected, address]);
+
   return (
     <aside
       className={`absolute    overflow-scroll lg:fixed z-30 p-5 top-1/2 -translate-y-1/2 left-0 lg:left-4 h-[100%] transition-transform duration-300 mt-0 lg:mt-5 ${
@@ -252,6 +353,7 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
           <button
             className=" cursor-pointer"
             onClick={() => {
+              // router.push("/manage/arena");
               dispatch(setActiveMenu("Arena"));
             }}
             aria-expanded={arenaOpen}
@@ -396,6 +498,8 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
           <button
             className="cursor-pointer"
             onClick={() => {
+              // router.push("/manage/agents");
+
               dispatch(setActiveMenu("Agents"));
             }}
             aria-expanded={agentsOpen}
@@ -426,33 +530,49 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
         </div>
         {agentsOpen && (
           <div className="flex flex-col gap-6">
-            {[
-              {
-                name: "Claudia AI",
-                img: "https://randomuser.me/api/portraits/women/41.jpg",
-              },
-              {
-                name: "Javanu",
-                img: "https://randomuser.me/api/portraits/men/32.jpg",
-              },
-              {
-                name: "Zeffyr NU",
-                img: "https://randomuser.me/api/portraits/men/65.jpg",
-              },
-            ].map((agent) => (
-              <div key={agent.name} className="flex items-center gap-[13px]">
-                <Image
-                  src={agent.img}
-                  alt={agent.name}
-                  className="w-6 h-6 rounded-full object-cover border-2 border-[#23262F]"
-                  width={24}
-                  height={24}
-                />
-                <span className="text-sm font-light text-white">
-                  {agent.name}
+            {loadingAgents ? (
+              <div className="flex items-center gap-[13px]">
+                <div className="w-6 h-6 rounded-full bg-gray-600 animate-pulse"></div>
+                <span className="text-sm font-light text-gray-400">
+                  Loading agents...
                 </span>
               </div>
-            ))}
+            ) : userAgents.length > 0 ? (
+              userAgents.map((agent) => (
+                <button
+                  key={agent.id}
+                  onClick={() => handleAgentClick(agent.id)}
+                  disabled={creatingRoom === agent.id}
+                  className={`flex items-center gap-[13px] cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed text-left w-full`}
+                >
+                  <Image
+                    src={agent.avatarUrl}
+                    alt={agent.name}
+                    className="w-6 h-6 rounded-full object-cover border-2 border-[#23262F] flex-shrink-0"
+                    width={24}
+                    height={24}
+                  />
+                  <span className="text-sm font-light text-white truncate">
+                    {creatingRoom === agent.id ? "Opening..." : agent.name}
+                  </span>
+                </button>
+              ))
+            ) : (
+              <div className="flex items-center gap-[13px]">
+                <div className="w-6 h-6 rounded-full bg-gray-600 flex items-center justify-center">
+                  <svg
+                    className="w-3 h-3 text-gray-400"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                  </svg>
+                </div>
+                <span className="text-sm font-light text-gray-400">
+                  No agents deployed yet
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -1,20 +1,20 @@
 import React, { useState, useCallback } from "react";
-import { ChevronDown, ChevronUp, GitBranch, Code } from "lucide-react";
-import { Checkmark } from "../../../components/Checkmark";
-import { LogicNodeData } from "@/types/nodeData";
+import { ChevronDown, ChevronUp, Mic, Settings } from "lucide-react";
+import { Checkmark } from "../Checkmark";
+import { VoiceNodeData } from "@/types/nodeData";
 
-interface LogicConfigFormProps {
-  localNodeData: LogicNodeData;
+interface VoiceConfigFormProps {
+  localNodeData: VoiceNodeData;
   handleInputChange: (field: string, value: string) => void;
 }
 
-const LogicConfigForm: React.FC<LogicConfigFormProps> = ({
+const VoiceConfigForm: React.FC<VoiceConfigFormProps> = ({
   localNodeData,
   handleInputChange,
 }) => {
   const [expandedSections, setExpandedSections] = useState({
-    logic: true,
-    expression: false,
+    voice: true,
+    settings: false,
   });
 
   const toggleSection = useCallback((section: string) => {
@@ -70,54 +70,77 @@ const LogicConfigForm: React.FC<LogicConfigFormProps> = ({
         </span>
       </div>
 
-      {/* Logic Type */}
+      {/* Voice Selection */}
       <div className="space-y-4">
-        <SectionHeader title="Logic Type" icon={GitBranch} section="logic" />
+        <SectionHeader title="Voice Selection" icon={Mic} section="voice" />
 
-        {expandedSections.logic && (
+        {expandedSections.voice && (
           <div className="space-y-4 pl-6">
             <div>
               <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                Condition Type
+                Voice Model
               </label>
               <select
-                value={String(localNodeData.condition || "if")}
-                onChange={(e) => handleInputChange("condition", e.target.value)}
+                value={String(localNodeData.voice || "male")}
+                onChange={(e) => handleInputChange("voice", e.target.value)}
                 className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-sm transition-all duration-300"
               >
-                <option value="if">If/Then</option>
-                <option value="switch">Switch/Case</option>
-                <option value="loop">Loop</option>
-                <option value="filter">Filter</option>
-                <option value="transform">Transform</option>
+                <option value="male">en_US-hfc_male-medium</option>
+                <option value="female">en_US-hfc_female-medium</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
+                Language
+              </label>
+              <select
+                value={String(localNodeData.language || "en")}
+                onChange={(e) => handleInputChange("language", e.target.value)}
+                className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-sm transition-all duration-300"
+              >
+                <option value="en">English</option>
+                <option value="es">Spanish</option>
+                <option value="fr">French</option>
+                <option value="de">German</option>
+                <option value="it">Italian</option>
+                <option value="pt">Portuguese</option>
+                <option value="zh">Chinese</option>
+                <option value="ja">Japanese</option>
               </select>
             </div>
           </div>
         )}
       </div>
 
-      {/* Expression */}
+      {/* Voice Settings */}
       <div className="space-y-4">
-        <SectionHeader title="Condition" icon={Code} section="expression" />
+        <SectionHeader
+          title="Voice Settings"
+          icon={Settings}
+          section="settings"
+        />
 
-        {expandedSections.expression && (
+        {expandedSections.settings && (
           <div className="space-y-4 pl-6">
             <div>
               <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                Logic Expression
+                Speed ({localNodeData.speed || 1.0})
               </label>
-              <textarea
-                value={String(localNodeData.expression || "")}
-                onChange={(e) =>
-                  handleInputChange("expression", e.target.value)
-                }
-                placeholder="Enter condition logic..."
-                rows={4}
-                className="w-full p-3 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 resize-none font-mono text-sm"
+              <input
+                type="range"
+                min="0.25"
+                max="4.0"
+                step="0.25"
+                value={localNodeData.speed || 1.0}
+                onChange={(e) => handleInputChange("speed", e.target.value)}
+                className="w-full accent-primary"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Example: user.age {">"}= 18 &amp;&amp; user.verified === true
-              </p>
+              <div className="flex justify-between text-xs text-white/50 mt-1">
+                <span>Slow</span>
+                <span>Normal</span>
+                <span>Fast</span>
+              </div>
             </div>
           </div>
         )}
@@ -126,4 +149,4 @@ const LogicConfigForm: React.FC<LogicConfigFormProps> = ({
   );
 };
 
-export default LogicConfigForm;
+export default VoiceConfigForm;
