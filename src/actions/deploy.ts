@@ -1,5 +1,6 @@
 "use server";
 
+import axios from "axios";
 import clientPromise from "@/lib/mongodb";
 import { APINode } from "@/redux/slices/selectedNodesSlice";
 
@@ -122,10 +123,12 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
   if (modelNode?.data.provider === "anthropic") {
     settings.secrets.ANTHROPIC_API_KEY = modelNode?.data?.apiKey
       ? String(modelNode.data.apiKey)
-      : (process.env.ANTHROPIC_API_KEY as string);
+      : (process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY as string);
   } else if (modelNode?.data.provider === "openai") {
-    settings.secrets.OPENAI_API_KEY =
-      String(modelNode.data.apiKey) ?? process.env.OPENAI_API_KEY;
+    settings.secrets.OPENAI_API_KEY = modelNode?.data?.apiKey
+      ? String(modelNode.data.apiKey)
+      : (process.env.NEXT_PUBLIC_OPENAI_API_KEY as string);
+    settings.secrets.USE_OPENAI_EMBEDDING = "true";
   }
   // }
 
@@ -214,9 +217,16 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
 
   // Add voice settings
   if (voiceNode?.data) {
+    console.log("Voice node data:", JSON.stringify(voiceNode.data, null, 2));
     settings.voice.model = String(voiceNode.data.voice || "alloy");
     settings.voice.language = String(voiceNode.data.language || "en");
     settings.voice.speed = Number(voiceNode.data.speed || 1);
+    console.log(
+      "Voice settings applied:",
+      JSON.stringify(settings.voice, null, 2)
+    );
+  } else {
+    console.log("No voice node found or voice node has no data");
   }
 
   // Create system prompt
@@ -328,8 +338,10 @@ export async function deployAgentAction(
   address: string,
   nodes: APINode[],
   agentName?: string,
-  description?: string
+  description?: string,
+  agentId?: string
 ): Promise<{ success: boolean; agentId?: string; error?: string }> {
+  console.log(nodes, "oheoss");
   try {
     // Validate input data
     if (!address || !address.trim()) {
@@ -372,67 +384,122 @@ export async function deployAgentAction(
     const formattedResult = transformToElizaFormat(agentData);
     console.log(JSON.stringify(formattedResult, null, 2), "formattedResult");
 
-    // First, deploy to ElizaOS server and get the agent ID
-    const {
-      success: serverSuccess,
-      data: serverData,
-      error: serverError,
-    } = await createAgentOnServer(formattedResult);
+    let elizaAgentId: string;
 
-    if (!serverSuccess || !serverData?.id) {
-      return {
-        success: false,
-        error: serverError || "Failed to deploy agent to ElizaOS server",
-      };
+    if (agentId) {
+      // Update existing agent
+      const {
+        success: updateSuccess,
+        data: updateData,
+        error: updateError,
+      } = await updateAgentOnServer(agentId, formattedResult);
+
+      if (!updateSuccess || !updateData?.id) {
+        return {
+          success: false,
+          error: updateError || "Failed to update agent on ElizaOS server",
+        };
+      }
+
+      elizaAgentId = updateData.id;
+      console.log("Agent updated on ElizaOS server with ID:", elizaAgentId);
+    } else {
+      // Create new agent
+      const {
+        success: serverSuccess,
+        data: serverData,
+        error: serverError,
+      } = await createAgentOnServer(formattedResult);
+
+      if (!serverSuccess || !serverData?.id) {
+        return {
+          success: false,
+          error: serverError || "Failed to deploy agent to ElizaOS server",
+        };
+      }
+
+      elizaAgentId = serverData.id;
+      console.log("Agent deployed to ElizaOS server with ID:", elizaAgentId);
     }
-
-    const elizaAgentId = serverData.id;
-    console.log("Agent deployed to ElizaOS server with ID:", elizaAgentId);
 
     // Create agent data with the ElizaOS agent ID
     const agentWithId = {
       ...agentData,
-      id: elizaAgentId, // Use the ID from ElizaOS instead of generating our own
-      // roomId: `room_${elizaAgentId}_${Date.now()}`, // Generate a unique room ID for the agent
+      id: elizaAgentId, // Use the ID from ElizaOS
     };
 
-    // Add the agent to the user's agents array (or create the field if it doesn't exist)
-    const updateResult = await collection.updateOne(
-      { address: address },
-      {
-        $push: {
-          agents: agentWithId,
-        },
-        $setOnInsert: {
-          createdAt: new Date(),
-        },
-        $set: {
-          updatedAt: new Date(),
-        },
-      },
-      { upsert: false } // Don't create new user, only update existing
-    );
+    let updateResult;
 
-    if (updateResult.modifiedCount > 0) {
-      console.log(`Agent deployed successfully for address: ${address}`);
-      console.log("Agent saved to database with ElizaOS ID:", elizaAgentId);
-
-      return {
-        success: true,
-        agentId: elizaAgentId, // Return the ElizaOS agent ID
-      };
-    } else {
-      // If database save fails, we should ideally clean up the ElizaOS agent
-      // For now, we'll log this as a warning since the agent exists on ElizaOS
-      console.warn(
-        `Agent ${elizaAgentId} deployed to ElizaOS but failed to save to database for address: ${address}`
+    if (agentId) {
+      // Update existing agent in database
+      updateResult = await collection.updateOne(
+        {
+          address: address,
+          "agents.id": elizaAgentId,
+        },
+        {
+          $set: {
+            "agents.$": agentWithId,
+            updatedAt: new Date(),
+          },
+        }
       );
 
-      return {
-        success: false,
-        error:
-          "Failed to save agent to user profile. Agent deployed to ElizaOS but not linked to user.",
-      };
+      if (updateResult.modifiedCount > 0) {
+        console.log(
+          `Agent ${elizaAgentId} updated successfully for address: ${address}`
+        );
+        return {
+          success: true,
+          agentId: elizaAgentId,
+        };
+      } else {
+        console.warn(
+          `Failed to update agent ${elizaAgentId} in database for address: ${address}`
+        );
+        return {
+          success: false,
+          error:
+            "Failed to update agent in user profile. Agent updated on ElizaOS but not in database.",
+        };
+      }
+    } else {
+      // Add new agent to the user's agents array
+      updateResult = await collection.updateOne(
+        { address: address },
+        {
+          $push: {
+            agents: agentWithId,
+          },
+          $setOnInsert: {
+            createdAt: new Date(),
+          },
+          $set: {
+            updatedAt: new Date(),
+          },
+        },
+        { upsert: false } // Don't create new user, only update existing
+      );
+
+      if (updateResult.modifiedCount > 0) {
+        console.log(`Agent deployed successfully for address: ${address}`);
+        console.log("Agent saved to database with ElizaOS ID:", elizaAgentId);
+
+        return {
+          success: true,
+          agentId: elizaAgentId,
+        };
+      } else {
+        console.warn(
+          `Agent ${elizaAgentId} deployed to ElizaOS but failed to save to database for address: ${address}`
+        );
+
+        return {
+          success: false,
+          error:
+            "Failed to save agent to user profile. Agent deployed to ElizaOS but not linked to user.",
+        };
+      }
     }
   } catch (error) {
     console.error("Error deploying agent:", error);
@@ -481,28 +548,30 @@ export async function createAgentOnServer(agentData: ElizaCharacter): Promise<{
 }> {
   try {
     // Send to API using the correct endpoint and body structure
-    const response = await fetch("http://localhost:3001/api/agents", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
+    const response = await axios.post(
+      "http://localhost:3001/api/agents",
+      {
         characterJson: agentData,
-      }),
-    });
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        validateStatus: (status) => status < 500,
+      }
+    );
 
-    if (!response.ok) {
-      const errorData = await response
-        .json()
-        .catch(() => ({ message: "Unknown error" }));
+    if (response.status >= 400) {
+      const errorMessage =
+        response.data?.message || `HTTP error! status: ${response.status}`;
       return {
         success: false,
-        error: errorData.message || `HTTP error! status: ${response.status}`,
+        error: errorMessage,
       };
     }
 
-    const result: ApiAgentResponse = await response.json();
+    const result: ApiAgentResponse = response.data;
     console.log(result, "result from server");
 
     return {
@@ -517,6 +586,59 @@ export async function createAgentOnServer(agentData: ElizaCharacter): Promise<{
         error instanceof Error
           ? error.message
           : "Unknown error occurred during agent creation",
+    };
+  }
+}
+
+export async function updateAgentOnServer(
+  agentId: string,
+  agentData: ElizaCharacter
+): Promise<{
+  success: boolean;
+  data?: ApiAgentResponse["data"];
+  error?: string;
+}> {
+  try {
+    // console.log(JSON.stringify(agentData, null, 2), "agentData to update");
+    // Send PATCH request to update existing agent
+    const response = await axios.patch(
+      `http://localhost:3001/api/agents/${agentId}`,
+
+      agentData,
+
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        validateStatus: (status) => status < 500,
+      }
+    );
+
+    if (response.status >= 400) {
+      const errorMessage =
+        response.data?.message || `HTTP error! status: ${response.status}`;
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+
+    const result: ApiAgentResponse = response.data;
+    console.log(JSON.stringify(result, null, 2), "result from server update");
+
+    return {
+      success: result.success || true,
+      data: result.data,
+    };
+  } catch (error) {
+    console.error("Error updating agent on server:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unknown error occurred during agent update",
     };
   }
 }

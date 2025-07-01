@@ -1,34 +1,24 @@
 "use server";
 
+import axios from "axios";
 import clientPromise from "@/lib/mongodb";
 import { UserDocument } from "@/actions/deploy";
+import { addressToUuid } from "@/lib/utils";
 
-export interface AgentMemory {
-  id: string;
-  content: { text: string; source?: string };
-  userId: string;
-  agentId: string;
-  entityId: string; // Added entityId field
-  roomId?: string;
-  channelId?: string;
-  createdAt: string | number; // Can be string or timestamp number
-  embedding?: number[];
-  metadata?: Record<string, unknown>;
-}
+// // Re-export the helper function for backward compatibility
+// export { addressToUuid } from "@/lib/utils";
 
-export interface GetAgentMemoriesParams {
-  agentId: string;
-  tableName?: string;
-  includeEmbedding?: boolean;
-  channelId?: string;
-  roomId?: string;
-}
-
-export interface GetAgentMemoriesResponse {
-  success: boolean;
-  data?: AgentMemory[];
-  error?: string;
-}
+import {
+  GetAgentMemoriesParams,
+  GetAgentMemoriesResponse,
+  GetAgentDetailsResponse,
+  SendMessageParams,
+  MessageResponse,
+  MessageHistoryParams,
+  MessageHistoryResponse,
+  CreateChatroomParams,
+  CreateChatroomResponse,
+} from "@/types/agent";
 
 export async function getAgentMemories({
   agentId,
@@ -53,29 +43,26 @@ export async function getAgentMemories({
     }
 
     // Make API request to ElizaOS
-    const response = await fetch(
+    const response = await axios.get(
       `http://localhost:3001/api/memory/${agentId}/memories?${searchParams.toString()}`,
       {
-        method: "GET",
         headers: {
           "Content-Type": "application/json",
         },
-        cache: "no-store", // Ensure fresh data
+        validateStatus: (status) => status < 500,
       }
     );
 
-    if (!response.ok) {
-      const errorData = await response
-        .json()
-        .catch(() => ({ message: "Unknown error" }));
-
+    if (response.status >= 400) {
+      const errorMessage =
+        response.data?.message || `HTTP error! status: ${response.status}`;
       return {
         success: false,
-        error: errorData.message || `HTTP error! status: ${response.status}`,
+        error: errorMessage,
       };
     }
 
-    const result = await response.json();
+    const result = response.data;
     // console.log(result.data.memories, "res");
 
     return {
@@ -94,45 +81,30 @@ export async function getAgentMemories({
   }
 }
 
-export interface AgentDetails {
-  id: string;
-  name: string;
-  status: "active" | "inactive";
-}
-
-export interface GetAgentDetailsResponse {
-  success: boolean;
-  data?: AgentDetails;
-  error?: string;
-}
-
 export async function getAgentDetails(
   agentId: string
 ): Promise<GetAgentDetailsResponse> {
   try {
-    const response = await fetch(
+    const response = await axios.get(
       `http://localhost:3001/api/agents/${agentId}`,
       {
-        method: "GET",
         headers: {
           "Content-Type": "application/json",
         },
-        cache: "no-store", // Ensure fresh data
+        validateStatus: (status) => status < 500,
       }
     );
 
-    if (!response.ok) {
-      const errorData = await response
-        .json()
-        .catch(() => ({ message: "Unknown error" }));
-
+    if (response.status >= 400) {
+      const errorMessage =
+        response.data?.message || `HTTP error! status: ${response.status}`;
       return {
         success: false,
-        error: errorData.message || `HTTP error! status: ${response.status}`,
+        error: errorMessage,
       };
     }
 
-    const result = await response.json();
+    const result = response.data;
 
     return {
       success: true,
@@ -150,65 +122,114 @@ export async function getAgentDetails(
   }
 }
 
-export interface SendMessageParams {
-  agentId: string;
-  text: string;
-  senderId?: string;
-  roomId?: string;
-  source?: string;
-}
-
-export interface MessageResponse {
-  success: boolean;
-  data?: {
-    messageId: string;
-    message: {
-      text: string;
-    };
-  };
-  error?: string;
-}
-
 export async function sendMessageToAgent({
   agentId,
   text,
-  senderId = "client",
   roomId = "default-room",
-  source = "web",
+  source = "fraktia_client",
+  authorId,
+  serverId = "00000000-0000-0000-0000-000000000000",
+  currentMessageCount = 0, // Pass current message count from UI
 }: SendMessageParams): Promise<MessageResponse> {
   try {
-    const response = await fetch(
-      `http://localhost:3001/api/agents/${agentId}/message`,
+    // Convert author ID to UUID format if it's an Ethereum address
+    const validAuthorId = authorId
+      ? authorId.startsWith("0x")
+        ? addressToUuid(authorId)
+        : authorId
+      : "00000000-0000-0000-0000-000000000001";
+
+    // Use the channel messaging API instead of agent-specific API
+    const response = await axios.post(
+      `http://localhost:3001/api/messaging/central-channels/${roomId}/messages`,
       {
-        method: "POST",
+        author_id: validAuthorId, // Fixed: was incorrectly set to serverId
+        content: text,
+        server_id: serverId,
+        source_type: source,
+        metadata: {
+          user_display_name: "User",
+          agentId: agentId,
+        },
+      },
+      {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          text,
-          senderId,
-          roomId,
-          source,
-        }),
+        validateStatus: (status) => status < 500,
       }
     );
+    console.log(response.data, "response from sendMessageToAgent");
 
-    if (!response.ok) {
-      const errorData = await response
-        .json()
-        .catch(() => ({ message: "Unknown error" }));
-
+    if (response.status >= 400) {
+      const errorMessage =
+        response.data?.error?.message ||
+        `HTTP error! status: ${response.status}`;
       return {
         success: false,
-        error: errorData.message || `HTTP error! status: ${response.status}`,
+        error: errorMessage,
       };
     }
 
-    const result = await response.json();
+    // const result = response.data;
+
+    // After successfully sending the message, wait for agent response by polling
+    const maxRetries = 10; // Maximum number of polling attempts
+    const retryDelay = 2000; // 2 seconds delay between attempts
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      // Wait before checking (except for first attempt)
+      if (attempt > 0) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+      }
+
+      const historyResponse = await getMessageHistory({
+        roomId: roomId,
+        limit: 50,
+      });
+
+      if (!historyResponse.success) {
+        console.warn(
+          "Failed to retrieve channel messages:",
+          historyResponse.error
+        );
+        continue; // Try again
+      }
+
+      const messages = historyResponse.data || [];
+
+      // Check if we have more messages than before AND there's an agent response
+      if (messages.length > currentMessageCount) {
+        // Look for a message that's NOT from the user's source type (i.e., an agent response)
+        const hasAgentResponse =
+          messages[messages.length - 1].sourceType === "agent_response";
+        if (hasAgentResponse) {
+          console.log(`Found agent response after ${attempt + 1} attempts`);
+          return {
+            success: true,
+            data: messages,
+          };
+        }
+      }
+
+      // Log progress
+      if (attempt === 0) {
+        console.log("Message sent, waiting for agent response...");
+      }
+    }
+
+    // If we've exhausted all retries, return what we have
+    console.warn(
+      "Agent response not received within timeout, returning current messages"
+    );
+    const finalHistoryResponse = await getMessageHistory({
+      roomId: roomId,
+      limit: 50,
+    });
 
     return {
       success: true,
-      data: result.data,
+      data: finalHistoryResponse.success ? finalHistoryResponse.data || [] : [],
     };
   } catch (error) {
     console.error("Error sending message to agent:", error);
@@ -222,62 +243,40 @@ export async function sendMessageToAgent({
   }
 }
 
-export interface MessageHistoryParams {
-  agentId: string;
-  roomId?: string;
-  limit?: number;
-}
-
-export interface MessageHistoryResponse {
-  success: boolean;
-  data?: AgentMemory[];
-  error?: string;
-}
-
 export async function getMessageHistory({
-  agentId,
-  roomId = "default-room",
+  roomId,
   limit = 50,
 }: MessageHistoryParams): Promise<MessageHistoryResponse> {
   try {
-    const searchParams = new URLSearchParams({
-      tableName: "messages",
-      includeEmbedding: "false",
-      limit: limit.toString(),
-    });
-
-    if (roomId) {
-      searchParams.append("roomId", roomId);
-    }
-
-    const response = await fetch(
-      `http://localhost:3001/api/memory/${agentId}/memories?${searchParams.toString()}`,
+    // Use the channel messages API instead of memory API
+    const response = await axios.get(
+      `http://localhost:3001/api/messaging/central-channels/${roomId}/messages`,
       {
-        method: "GET",
+        params: {
+          limit: limit,
+        },
         headers: {
           "Content-Type": "application/json",
         },
-        cache: "no-store",
+        validateStatus: (status) => status < 500,
       }
     );
 
-    if (!response.ok) {
-      const errorData = await response
-        .json()
-        .catch(() => ({ message: "Unknown error" }));
-
+    if (response.status >= 400) {
+      const errorMessage =
+        response.data?.message || `HTTP error! status: ${response.status}`;
       return {
         success: false,
-        error: errorData.message || `HTTP error! status: ${response.status}`,
+        error: errorMessage,
       };
     }
 
-    const result = await response.json();
+    const result = response.data;
+    console.log("channel messages", result.data);
 
-    console.log("memories", result.data.memories);
     return {
       success: true,
-      data: result.data.memories || [],
+      data: result.data.messages.reverse() || [],
     };
   } catch (error) {
     console.error("Error fetching message history:", error);
@@ -289,19 +288,6 @@ export async function getMessageHistory({
           : "Unknown error occurred while fetching message history",
     };
   }
-}
-
-export interface CreateChatroomParams {
-  agentId: string;
-  userAddress: string;
-  roomName?: string;
-}
-
-export interface CreateChatroomResponse {
-  success: boolean;
-  roomId?: string;
-  error?: string;
-  isNewRoom?: boolean;
 }
 
 export async function createChatroom({
@@ -339,6 +325,34 @@ export async function createChatroom({
       };
     }
 
+    // Start the agent first before creating chatroom
+    try {
+      const startResponse = await axios.post(
+        `http://localhost:3001/api/agents/${agentId}/start`,
+        {},
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          validateStatus: (status) => status < 500,
+        }
+      );
+
+      if (startResponse.status >= 400) {
+        console.warn(
+          `Failed to start agent: ${startResponse.status}`,
+          startResponse.data
+        );
+        // Continue with chatroom creation even if agent start fails
+        // as the agent might already be running
+      } else {
+        console.log("Agent started successfully:", startResponse.data);
+      }
+    } catch (startError) {
+      console.warn("Error starting agent:", startError);
+      // Continue with chatroom creation even if agent start fails
+    }
+
     // If agent already has a roomId, return it
     if (agent.roomId) {
       return {
@@ -353,34 +367,33 @@ export async function createChatroom({
       name:
         roomName ||
         `${agent.name} - ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`,
+      serverId: "00000000-0000-0000-0000-000000000000",
+      type: "text",
     };
 
-    const response = await fetch(
-      `http://localhost:3001/api/memory/${agentId}/rooms`,
+    const response = await axios.post(
+      `http://localhost:3001/api/messaging/channels`,
+      roomData,
       {
-        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(roomData),
+        validateStatus: (status) => status < 500,
       }
     );
 
-    if (!response.ok) {
-      const errorData = await response.json().catch((res) => {
-        console.log(res, "response");
-        return { message: "Unknown error" };
-      });
-      console.log(errorData, "errorData");
-
+    if (response.status >= 400) {
+      const errorMessage =
+        response.data?.message || `Failed to create room: ${response.status}`;
+      console.log(response.data, "errorData");
       return {
         success: false,
-        error: errorData.message || `Failed to create room: ${response.status}`,
+        error: errorMessage,
       };
     }
 
-    const result = await response.json();
-    const newRoomId = result.data?.id;
+    const result = response.data;
+    const newRoomId = result.data?.channel?.id;
     console.log(result, "result");
 
     if (!newRoomId) {
@@ -388,6 +401,38 @@ export async function createChatroom({
         success: false,
         error: "No room ID returned from ElizaOS API",
       };
+    }
+
+    // Add the agent to the newly created channel
+    try {
+      const addAgentResponse = await axios.post(
+        `http://localhost:3001/api/messaging/central-channels/${newRoomId}/agents`,
+        {
+          agentId: agentId,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          validateStatus: (status) => status < 500,
+        }
+      );
+
+      if (addAgentResponse.status >= 400) {
+        console.warn(
+          `Failed to add agent to channel: ${addAgentResponse.status}`,
+          addAgentResponse.data
+        );
+        // Continue even if adding agent fails - the channel exists
+      } else {
+        console.log(
+          "Agent added to channel successfully:",
+          addAgentResponse.data
+        );
+      }
+    } catch (addAgentError) {
+      console.warn("Error adding agent to channel:", addAgentError);
+      // Continue even if adding agent fails - the channel exists
     }
 
     // Update the agent in the database with the new roomId

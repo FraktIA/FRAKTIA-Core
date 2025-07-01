@@ -46,7 +46,7 @@ const Agent = () => {
   }, [agentId]);
 
   return (
-    <div className="w-full flex flex-col bg-bg">
+    <div className="w-full flex-1 justify-between flex flex-col bg-bg">
       <Header agent={true} agentId={agentId} agentDetails={agentDetails} />
 
       {/* Agent Details Error State */}

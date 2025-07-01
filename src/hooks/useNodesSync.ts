@@ -123,6 +123,11 @@ export const useAgentBuilderSync = () => {
   // Function to handle ReactFlow onNodesChange
   const handleNodesChange = useCallback(
     (nodes: Node[]) => {
+      console.log(
+        "useNodesSync - handleNodesChange called with",
+        nodes.length,
+        "nodes"
+      );
       syncAllNodes(nodes);
     },
     [syncAllNodes]
@@ -177,6 +182,9 @@ export const useAgentBuilderSync = () => {
     handleNodesChange,
     handleSelectionChange,
     handleNodeUpdate,
+
+    // Direct sync functions
+    syncAllNodes,
 
     // API preparation
     prepareForAPISubmission,

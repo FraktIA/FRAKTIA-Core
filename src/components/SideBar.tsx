@@ -175,7 +175,7 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
 
       if (result.success && result.roomId) {
         // Navigate to the agent page
-        router.push(`/agent/${agentId}?room=${result.roomId}`);
+        router.push(`/agent/${agentId}?roomId=${result.roomId}`);
       } else {
         console.error("Failed to create/get chatroom:", result.error);
         // Still navigate even if room creation failed - let the agent page handle it
@@ -578,7 +578,14 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
       </div>
       {/* Footer */}
       <div className="w-max h-max py-5 lg:hidden  gap-6 justify-center flex flex-col-reverse  items-start">
-        <p className="text-xs mb-6 bg-bg p-3 rounded-xl lg:mb-0">BUY FRAKTIA</p>
+        <a
+          href="https://app.uniswap.org/#/swap?exactField=input&inputCurrency=ETH&outputCurrency=0xCDBdD8a173C385d8A3C8CAB7914a99e8c3d9C3a1"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs mb-6 bg-bg p-3 rounded-xl lg:mb-0 hover:bg-primary/10 transition-colors cursor-pointer"
+        >
+          BUY FRAKTIA
+        </a>
         <div className="relative">
           <div
             className="flex text-[#232323] rounded-[4px] justify-center items-center gap-1 w-[171px] h-[36px] bg-primary hover:cursor-pointer transition-colors hover:bg-primary/90"

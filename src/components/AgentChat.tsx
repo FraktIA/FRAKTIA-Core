@@ -2,19 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import {
-  AgentDetails,
-  sendMessageToAgent,
-  getMessageHistory,
-  AgentMemory,
-} from "@/actions/agent";
-
-interface Message {
-  id: string;
-  content: string;
-  role: "user" | "assistant";
-  timestamp: Date;
-}
+import { sendMessageToAgent, getMessageHistory } from "@/actions/agent";
+import { AgentDetails, ChannelMessage } from "@/types/agent";
+import { addressToUuid } from "@/lib/utils";
+import { useAppKitAccount } from "@reown/appkit/react";
 
 interface AgentChatProps {
   agent: AgentDetails;
@@ -24,35 +15,36 @@ interface AgentChatProps {
 export default function AgentChat({ agent, roomId }: AgentChatProps) {
   console.log("AgentChat - agent:", agent?.id, "roomId:", roomId);
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChannelMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { address } = useAppKitAccount();
 
   // Convert AgentMemory to Message format
-  const convertMemoryToMessage = (
-    memory: AgentMemory,
-    agentId: string
-  ): Message => {
-    // Determine role based on entityId vs agentId
-    // If entityId matches agentId, it's an agent message
-    // If entityId is different or has source 'client_chat', it's a user message
-    const isAgentMessage = memory.entityId === agentId;
-    const isUserMessage =
-      memory.content.source === "client_chat" || !isAgentMessage;
+  // const convertMemoryToMessage = (
+  //   memory: AgentMemory,
+  //   agentId: string
+  // ): Message => {
+  //   // Determine role based on entityId vs agentId
+  //   // If entityId matches agentId, it's an agent message
+  //   // If entityId is different or has source 'client_chat', it's a user message
+  //   const isAgentMessage = memory.entityId === agentId;
+  //   const isUserMessage =
+  //     memory.content.source === "client_chat" || !isAgentMessage;
 
-    return {
-      id: memory.id,
-      content: memory.content.text,
-      role: isUserMessage ? "user" : "assistant",
-      timestamp: new Date(
-        typeof memory.createdAt === "string"
-          ? memory.createdAt
-          : memory.createdAt
-      ),
-    };
-  };
+  //   return {
+  //     id: memory.id,
+  //     content: memory.content.text,
+  //     role: isUserMessage ? "user" : "assistant",
+  //     timestamp: new Date(
+  //       typeof memory.createdAt === "string"
+  //         ? memory.createdAt
+  //         : memory.createdAt
+  //     ),
+  //   };
+  // };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -61,11 +53,13 @@ export default function AgentChat({ agent, roomId }: AgentChatProps) {
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
-    const userMessage: Message = {
+    const userMessage: ChannelMessage = {
       id: Date.now().toString(),
       content: inputValue,
-      role: "user",
-      timestamp: new Date(),
+      author_id: addressToUuid(address as string),
+      server_id: "00000000-0000-0000-0000-000000000000",
+      sourceType: "fraktia_client", // Fixed: should be sourceType
+      created_at: new Date().toISOString(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -77,19 +71,16 @@ export default function AgentChat({ agent, roomId }: AgentChatProps) {
       const response = await sendMessageToAgent({
         agentId: agent?.id,
         text: userMessage.content,
-        senderId: "user",
+        authorId: address as string,
         roomId: roomId || "default-room", // Use the provided roomId or fallback
-        source: "web",
+        currentMessageCount: messages.length, // Pass current message count
       });
 
-      if (response.success && response.data?.message?.text) {
-        const assistantMessage: Message = {
-          id: response.data.messageId || (Date.now() + 1).toString(),
-          content: response.data.message.text,
-          role: "assistant",
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
+      console.log("Response from sendMessageToAgent:", response);
+
+      if (response.success && response.data) {
+        // Don't reverse here - messages should come in chronological order
+        setMessages(response.data);
       } else {
         throw new Error(response.error || "Invalid response format");
       }
@@ -97,12 +88,14 @@ export default function AgentChat({ agent, roomId }: AgentChatProps) {
       console.error("Error sending message:", error);
 
       // Fallback error message
-      const errorMessage: Message = {
+      const errorMessage: ChannelMessage = {
         id: (Date.now() + 1).toString(),
+        author_id: addressToUuid(address as string),
+        server_id: "00000000-0000-0000-0000-0000000000",
         content:
           "Sorry, I'm having trouble connecting right now. Please try again later.",
-        role: "assistant",
-        timestamp: new Date(),
+        sourceType: "agent_response", // Fixed: should be sourceType
+        created_at: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMessage]);
     } finally {
@@ -128,10 +121,8 @@ export default function AgentChat({ agent, roomId }: AgentChatProps) {
         });
 
         if (response.success && response.data) {
-          const historyMessages = response.data
-            .map((memory) => convertMemoryToMessage(memory, agent.id))
-            .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-
+          const historyMessages = response.data;
+          // Don't reverse here - messages should come in chronological order
           setMessages(historyMessages);
         } else {
           // If no history or error, show default welcome message
@@ -153,8 +144,10 @@ export default function AgentChat({ agent, roomId }: AgentChatProps) {
     scrollToBottom();
   }, [messages]);
 
+  console.log(messages);
+
   return (
-    <div className="flex flex-col w-full  relative flex-1  overflow-scroll mt-10 rounded-[15px]  bg-dark">
+    <div className="flex  flex-col h-[80vh]  w-full  relative     rounded-[15px]  bg-dark">
       {/* Intro Message - Show when no history or only default welcome message */}
       {!isLoadingHistory && messages.length <= 1 && (
         <div className="flex flex-col relative bottom-[10%] m-auto items-center justify-center gap-4">
@@ -185,17 +178,19 @@ export default function AgentChat({ agent, roomId }: AgentChatProps) {
 
       {/* Messages */}
       {messages.length > 0 && (
-        <div className="flex-1 flex flex-col overflow-y-auto p-4 lg:p-6 space-y-4 bg-dark/50">
+        <div className="rounded-[15px] h-[90.5%] 5xl:h-[94%]   max-h-[90.5%] 5xl:max-h-[94%] scroll-smooth flex flex-col overflow-y-scroll  p-4 lg:p-6 gap-4">
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex   w-max max-w-[400px] relative ${
-                message.role === "user" ? "self-end" : "self-start"
+              className={`flex   w-max max-w-[500px] relative ${
+                message.sourceType === "fraktia_client"
+                  ? "self-end"
+                  : "self-start"
               }`}
             >
               <div
                 className={`rounded-md p-4 ${
-                  message.role === "user"
+                  message.sourceType === "fraktia_client"
                     ? "bg-primary text-black"
                     : "bg-bg borde border-primary/30 text-white"
                 }`}

@@ -162,7 +162,14 @@ const Header = ({
         </div>
       )}
       <div className="w-[335px] h-[60px] gap-6 justify-center flex items-center rounded-[15px] bg-bg">
-        <p className="text-white">BUY FRAKTIA</p>
+        <a
+          href="https://app.uniswap.org/#/swap?exactField=input&inputCurrency=ETH&outputCurrency=0xCDBdD8a173C385d8A3C8CAB7914a99e8c3d9C3a1"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-white hover:text-primary transition-colors cursor-pointer"
+        >
+          BUY FRAKTIA
+        </a>
         <div className="relative" ref={dropdownRef}>
           <div
             className="flex text-[#232323] rounded-[4px] justify-center items-center gap-1 w-[171px] h-[36px] bg-primary hover:cursor-pointer transition-colors hover:bg-primary/90"

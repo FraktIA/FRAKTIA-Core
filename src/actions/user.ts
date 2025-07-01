@@ -1,5 +1,6 @@
 "use server";
 
+import axios from "axios";
 import clientPromise from "@/lib/mongodb";
 import { UserDocument, AgentData } from "@/actions/deploy";
 
@@ -227,6 +228,96 @@ export async function getAgentById(
         error instanceof Error
           ? error.message
           : "Unknown error occurred while fetching agent",
+    };
+  }
+}
+
+export async function deleteAgent(
+  agentId: string,
+  userAddress: string
+): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    if (!agentId || !agentId.trim() || !userAddress || !userAddress.trim()) {
+      return {
+        success: false,
+        error: "Agent ID and user address are required",
+      };
+    }
+
+    // First, call the ElizaOS API to delete the agent
+    try {
+      const response = await axios.delete(
+        `http://localhost:3001/api/agents/${agentId}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          // Don't throw on HTTP error status codes
+          validateStatus: (status) => status < 500,
+        }
+      );
+
+      if (response.status >= 400) {
+        const errorMessage =
+          response.data?.message || `HTTP error! status: ${response.status}`;
+        return {
+          success: false,
+          error: errorMessage,
+        };
+      }
+
+      console.log(
+        "Agent deleted from ElizaOS server:",
+        response.status === 200 ? "Success" : response.data
+      );
+    } catch (apiError) {
+      console.error("Error deleting agent from API:", apiError);
+      return {
+        success: false,
+        error: `Failed to delete agent from server: ${
+          apiError instanceof Error ? apiError.message : "Unknown API error"
+        }`,
+      };
+    }
+
+    // If API deletion successful, remove agent from user's agents array in MongoDB
+    const client = await clientPromise;
+    const db = client.db("Fraktia");
+    const collection = db.collection<UserDocument>("users");
+
+    const updateResult = await collection.updateOne(
+      { address: userAddress },
+      {
+        $pull: { agents: { id: agentId } },
+        $set: { updatedAt: new Date() },
+      }
+    );
+
+    if (updateResult.modifiedCount > 0) {
+      console.log(
+        `Agent ${agentId} deleted successfully for user ${userAddress}`
+      );
+      return {
+        success: true,
+      };
+    } else {
+      return {
+        success: false,
+        error: "Agent not found in user's agent list or already deleted",
+      };
+    }
+  } catch (error) {
+    console.error("Error deleting agent:", error);
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unknown error occurred while deleting agent",
     };
   }
 }

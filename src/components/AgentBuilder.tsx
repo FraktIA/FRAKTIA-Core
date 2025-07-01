@@ -18,6 +18,7 @@ import {
   goToStep,
   selectIsEditingAgent,
   clearEditingMode,
+  setActiveMenu,
 } from "@/redux/slices/uiSlice";
 
 import {
@@ -231,15 +232,11 @@ const getDefaultNodeData = (nodeType: string, nodeName: string) => {
       };
     case "voice":
       // Determine the voice model based on the node name
-      let voiceModel = "alloy";
-      if (nodeName.includes("ElevenLabs")) {
+      let voiceModel = "en_US-hfc_male-medium"; // Default to Piper male voice
+      if (nodeName.includes("ElevenLabs") || nodeName.includes("Eleven Labs")) {
         voiceModel = "elevenlabs";
-      } else if (nodeName.includes("Whisper")) {
-        voiceModel = "whisper";
-      } else if (nodeName.includes("Azure")) {
-        voiceModel = "azure";
-      } else if (nodeName.includes("Google")) {
-        voiceModel = "google";
+      } else if (nodeName.includes("female") || nodeName.includes("Female")) {
+        voiceModel = "en_US-hfc_female-medium";
       }
 
       return {
@@ -406,6 +403,7 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
   const {
     handleSelectionChange: syncSelectionChange,
     handleNodeUpdate: syncNodeUpdate,
+    syncAllNodes,
     prepareForAPISubmission,
   } = useAgentBuilderSync();
 
@@ -591,6 +589,21 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
     // Get character name
     const characterName = getCharacterName();
 
+    // Get agent ID if editing an existing agent
+    let agentId: string | undefined;
+    if (isEditingAgent) {
+      try {
+        const editingAgentInfo = sessionStorage.getItem("editingAgentInfo");
+        if (editingAgentInfo) {
+          const agentInfo = JSON.parse(editingAgentInfo);
+          agentId = agentInfo.id;
+          console.log("Editing existing agent with ID:", agentId);
+        }
+      } catch (error) {
+        console.error("Error getting editing agent info:", error);
+      }
+    }
+
     // Open loading modal
     dispatch(openModal("agentDeploying"));
     setIsDeploying(true);
@@ -598,6 +611,13 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
 
     try {
       console.log("Deploying agent with nodes:", apiNodesData.allNodes);
+      console.log("Local nodes count:", nodes.length);
+      console.log(
+        "Local nodes:",
+        nodes.map((n) => ({ type: n.type, label: n.data.label }))
+      );
+      console.log("Redux API nodes data:", apiNodesData);
+      console.log("Agent ID for deployment:", agentId);
 
       // Debug: Log each node's data
       apiNodesData.allNodes.forEach((node, index) => {
@@ -608,7 +628,8 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
         address as string,
         apiNodesData.allNodes,
         characterName, // Use character name instead of timestamp
-        "AI Agent created with node builder"
+        "AI Agent created with node builder",
+        agentId // Pass the agent ID if editing
       );
 
       // Close loading modal first
@@ -617,12 +638,16 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
       if (result.success) {
         // Clear editing mode after successful deployment
         dispatch(clearEditingMode());
+        // Clear sessionStorage for editing agent info
+        sessionStorage.removeItem("editingAgentInfo");
         // Open success modal
         dispatch(openModal("agentCreated"));
         // Trigger refresh of agents list in sidebar
         dispatch(triggerAgentsRefresh());
         setDeploymentMessage(
-          `✅ Agent deployed successfully! ID: ${result.agentId}`
+          `✅ Agent ${
+            isEditingAgent ? "re-deployed" : "deployed"
+          } successfully! ID: ${result.agentId}`
         );
         console.log("Deployment successful:", result);
       } else {
@@ -896,6 +921,17 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
     },
     [nodes, setNodes, syncSelectionChange]
   );
+
+  // Sync local nodes to Redux whenever they change
+  useEffect(() => {
+    console.log(
+      "Syncing nodes to Redux - local nodes count:",
+      nodes.length,
+      "nodes:",
+      nodes.map((n) => ({ type: n.type, label: n.data.label }))
+    );
+    syncAllNodes(nodes);
+  }, [nodes, syncAllNodes]);
 
   // Initialize view when nodes change or viewport size changes
   useEffect(() => {
@@ -1265,7 +1301,10 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
                 Created
               </h2>
             </div>
-            <button className="w-[263px] mb-8 border-[#232323] border text-black rounded-[8px] flex items-center gap-1 justify-center bg-primary cursor-pointer hover:bg-primary/80 duration-200 h-[48px] lg:w-[320px]">
+            <button
+              onClick={() => dispatch(setActiveMenu("Agents"))}
+              className="w-[263px] mb-8 border-[#232323] border text-black rounded-[8px] flex items-center gap-1 justify-center bg-primary cursor-pointer hover:bg-primary/80 duration-200 h-[48px] lg:w-[320px]"
+            >
               <p>Explore Agent</p>
               <Image
                 src={"/icons/chat.svg"}

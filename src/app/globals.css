@@ -4,6 +4,7 @@
   --background: #ffffff;
   --foreground: #171717;
 }
+/* add a screen size for larger and tall screens */
 
 @theme inline {
   --color-background: var(--background);
@@ -13,6 +14,8 @@
   --color-primary: #F8FF99;
   --color-bg: #191919;
   --color-dark: #0D0F10;
+  --breakpoint-5xl: 100rem;
+  
 
 }
 

@@ -354,9 +354,9 @@ export default function Manage() {
         {renderContent()}
       </div>
 
-      <Modal isOpen={!allowed} onClose={() => {}}>
+      {/* <Modal isOpen={!allowed} onClose={() => {}}>
         <NoAccessComponent onTryAnotherAccount={() => setAllowed(true)} />
-      </Modal>
+      </Modal> */}
     </div>
   );
 }

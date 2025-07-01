@@ -81,12 +81,16 @@ const VoiceConfigForm: React.FC<VoiceConfigFormProps> = ({
                 Voice Model
               </label>
               <select
-                value={String(localNodeData.voice || "male")}
+                value={String(localNodeData.voice || "en_US-hfc_male-medium")}
                 onChange={(e) => handleInputChange("voice", e.target.value)}
                 className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-sm transition-all duration-300"
               >
-                <option value="male">en_US-hfc_male-medium</option>
-                <option value="female">en_US-hfc_female-medium</option>
+                <option value="en_US-hfc_male-medium">
+                  en_US-hfc_male-medium
+                </option>
+                <option value="en_US-hfc_female-medium">
+                  en_US-hfc_female-medium
+                </option>
               </select>
             </div>
 
