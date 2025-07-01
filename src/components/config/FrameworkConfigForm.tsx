@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 import { ChevronDown, ChevronUp, Layers, Info } from "lucide-react";
-import { Checkmark } from "../Checkmark";
+// import { Checkmark } from "../Checkmark";
 import { FrameworkNodeData } from "@/types/nodeData";
 
 interface FrameworkConfigFormProps {
@@ -82,12 +82,12 @@ const FrameworkConfigForm: React.FC<FrameworkConfigFormProps> = ({
   return (
     <div className="space-y-6 h-full p-6 relative">
       {/* Status Indicator */}
-      <div className="absolute top-4 right-4 flex items-center gap-2">
+      {/* <div className="absolute top-4 right-4 flex items-center gap-2">
         <Checkmark className="w-4 h-4 text-green-400 drop-shadow-lg" />
         <span className="text-green-400 text-[10px] font-bold capitalize">
           Ready
         </span>
-      </div>
+      </div> */}
 
       {/* Framework Information */}
       <div className="space-y-4">

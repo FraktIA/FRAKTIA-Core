@@ -1,11 +1,11 @@
-import React, { useState, useCallback, memo } from "react";
+import React, { useState, useCallback, memo, useEffect } from "react";
 import { ChevronDown, ChevronUp, Brain, Settings, Key } from "lucide-react";
 import { Checkmark } from "../Checkmark";
 import { ModelNodeData } from "@/types/nodeData";
 
 interface ModelConfigFormProps {
   model: ModelNodeData;
-  handleInputChange: (field: string, value: string | number) => void;
+  handleInputChange: (field: string, value: string | number | boolean) => void;
   onHighlightCharacter?: (nodeName: string) => void;
 }
 
@@ -17,7 +17,24 @@ const ModelConfigForm: React.FC<ModelConfigFormProps> = memo(
       settings: false,
     });
 
-    // Remove the console.log that's causing the rendering logs
+    // Validation function to check if the node should be marked as configured
+    const isModelConfigured = useCallback(() => {
+      return !!(model.provider && model.model);
+    }, [model.provider, model.model]);
+
+    // Effect to update configured status whenever validation criteria changes
+    useEffect(() => {
+      const configured = isModelConfigured();
+      if (model.configured !== configured) {
+        handleInputChange("configured", configured);
+      }
+    }, [
+      model.provider,
+      model.model,
+      model.configured,
+      handleInputChange,
+      isModelConfigured,
+    ]);
 
     const toggleSection = useCallback((section: string) => {
       setExpandedSections((prev) => ({
@@ -66,17 +83,30 @@ const ModelConfigForm: React.FC<ModelConfigFormProps> = memo(
       switch (model.provider) {
         case "openai":
           return [
-            { value: "gpt-4-turbo-preview", label: "GPT-4 Turbo" },
+            { value: "gpt-4.1", label: "GPT-4.1" },
+            { value: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
+            { value: "gpt-4.1-nano", label: "GPT-4.1 Nano" },
+            { value: "gpt-4.5-preview", label: "GPT-4.5 Preview" },
+            { value: "gpt-4o", label: "GPT-4o" },
+            { value: "gpt-4o-2024-11-20", label: "GPT-4o (Nov 2024)" },
+            { value: "gpt-4o-mini", label: "GPT-4o Mini" },
+            { value: "chatgpt-4o-latest", label: "ChatGPT-4o Latest" },
+            { value: "gpt-4-turbo", label: "GPT-4 Turbo" },
             { value: "gpt-4", label: "GPT-4" },
             { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
-            { value: "gpt-3.5-turbo-16k", label: "GPT-3.5 Turbo 16K" },
           ];
         case "anthropic":
           return [
-            { value: "claude-3-opus-20240229", label: "Claude 3 Opus" },
-            { value: "claude-3-sonnet-20240229", label: "Claude 3 Sonnet" },
-            { value: "claude-3-haiku-20240307", label: "Claude 3 Haiku" },
-            { value: "claude-2.1", label: "Claude 2.1" },
+            { value: "claude-opus-4-20250514", label: "Claude Opus 4" },
+            { value: "claude-sonnet-4-20250514", label: "Claude Sonnet 4" },
+            { value: "claude-3-7-sonnet-20250219", label: "Claude Sonnet 3.7" },
+            {
+              value: "claude-3-5-sonnet-20241022",
+              label: "Claude Sonnet 3.5 v2",
+            },
+            { value: "claude-3-5-sonnet-20240620", label: "Claude Sonnet 3.5" },
+            { value: "claude-3-5-haiku-20241022", label: "Claude Haiku 3.5" },
+            { value: "claude-3-haiku-20240307", label: "Claude Haiku 3" },
           ];
         case "google":
           return [
@@ -93,8 +123,8 @@ const ModelConfigForm: React.FC<ModelConfigFormProps> = memo(
         //add a case for deepseek
         case "deepseek":
           return [
-            { value: "deepseek-7b", label: "DeepSeek 7B" },
-            { value: "deepseek-13b", label: "DeepSeek 13B" },
+            { value: "deepseek-chat", label: "DeepSeek Chat" },
+            { value: "deepseek-reasoner", label: "DeepSeek Reasoner" },
           ];
         case "local":
           return [
@@ -112,9 +142,17 @@ const ModelConfigForm: React.FC<ModelConfigFormProps> = memo(
       <div className="space-y-6 h-full p-6 relative">
         {/* Status Indicator */}
         <div className="absolute top-4 right-4 flex items-center gap-2">
-          <Checkmark className="w-4 h-4 text-green-400 drop-shadow-lg" />
-          <span className="text-green-400 text-[10px] font-bold capitalize">
-            Ready
+          <Checkmark
+            className={`w-4 h-4 ${
+              isModelConfigured() ? "text-green-400" : "text-yellow-400"
+            } drop-shadow-lg`}
+          />
+          <span
+            className={`${
+              isModelConfigured() ? "text-green-400" : "text-yellow-400"
+            } text-[10px] font-bold capitalize`}
+          >
+            {isModelConfigured() ? "Ready" : "Setup Required"}
           </span>
         </div>
 

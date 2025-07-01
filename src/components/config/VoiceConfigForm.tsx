@@ -1,11 +1,11 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { ChevronDown, ChevronUp, Mic, Settings } from "lucide-react";
-import { Checkmark } from "../Checkmark";
+// import { Checkmark } from "../Checkmark";
 import { VoiceNodeData } from "@/types/nodeData";
 
 interface VoiceConfigFormProps {
   localNodeData: VoiceNodeData;
-  handleInputChange: (field: string, value: string) => void;
+  handleInputChange: (field: string, value: string | boolean) => void;
 }
 
 const VoiceConfigForm: React.FC<VoiceConfigFormProps> = ({
@@ -16,6 +16,24 @@ const VoiceConfigForm: React.FC<VoiceConfigFormProps> = ({
     voice: true,
     settings: false,
   });
+
+  // Validation function to check if the voice node should be marked as configured
+  const isVoiceConfigured = useCallback(() => {
+    return !!(localNodeData.voice && localNodeData.voice.trim() !== "");
+  }, [localNodeData.voice]);
+
+  // Effect to update configured status whenever validation criteria changes
+  useEffect(() => {
+    const configured = isVoiceConfigured();
+    if (localNodeData.configured !== configured) {
+      handleInputChange("configured", configured);
+    }
+  }, [
+    localNodeData.voice,
+    localNodeData.configured,
+    handleInputChange,
+    isVoiceConfigured,
+  ]);
 
   const toggleSection = useCallback((section: string) => {
     setExpandedSections((prev) => ({
@@ -63,12 +81,12 @@ const VoiceConfigForm: React.FC<VoiceConfigFormProps> = ({
   return (
     <div className="space-y-6 h-full p-6 relative">
       {/* Status Indicator */}
-      <div className="absolute top-4 right-4 flex items-center gap-2">
+      {/* <div className="absolute top-4 right-4 flex items-center gap-2">
         <Checkmark className="w-4 h-4 text-green-400 drop-shadow-lg" />
         <span className="text-green-400 text-[10px] font-bold capitalize">
           Ready
         </span>
-      </div>
+      </div> */}
 
       {/* Voice Selection */}
       <div className="space-y-4">
@@ -104,13 +122,13 @@ const VoiceConfigForm: React.FC<VoiceConfigFormProps> = ({
                 className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-sm transition-all duration-300"
               >
                 <option value="en">English</option>
-                <option value="es">Spanish</option>
+                {/* <option value="es">Spanish</option>
                 <option value="fr">French</option>
                 <option value="de">German</option>
                 <option value="it">Italian</option>
                 <option value="pt">Portuguese</option>
                 <option value="zh">Chinese</option>
-                <option value="ja">Japanese</option>
+                <option value="ja">Japanese</option> */}
               </select>
             </div>
           </div>
@@ -134,7 +152,7 @@ const VoiceConfigForm: React.FC<VoiceConfigFormProps> = ({
               <input
                 type="range"
                 min="0.25"
-                max="4.0"
+                max="2"
                 step="0.25"
                 value={localNodeData.speed || 1.0}
                 onChange={(e) => handleInputChange("speed", e.target.value)}

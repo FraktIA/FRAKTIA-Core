@@ -13,7 +13,7 @@ import {
 } from "@reown/appkit/react";
 import React, { useRef, useEffect } from "react";
 import Image from "next/image";
-import { AgentDetails } from "@/actions/agent";
+import { AgentDetails } from "@/types/agent";
 
 const Header = ({
   agentId,

@@ -44,11 +44,12 @@ export async function getAgentMemories({
 
     // Make API request to ElizaOS
     const response = await axios.get(
-      `http://localhost:3001/api/memory/${agentId}/memories?${searchParams.toString()}`,
+      `https://app.fraktia.ai/api/memory/${agentId}/memories?${searchParams.toString()}`,
       {
         headers: {
           "Content-Type": "application/json",
         },
+        timeout: 10000, // 10 second timeout
         validateStatus: (status) => status < 500,
       }
     );
@@ -86,11 +87,12 @@ export async function getAgentDetails(
 ): Promise<GetAgentDetailsResponse> {
   try {
     const response = await axios.get(
-      `http://localhost:3001/api/agents/${agentId}`,
+      `https://app.fraktia.ai/api/agents/${agentId}`,
       {
         headers: {
           "Content-Type": "application/json",
         },
+        timeout: 10000, // 10 second timeout
         validateStatus: (status) => status < 500,
       }
     );
@@ -139,26 +141,78 @@ export async function sendMessageToAgent({
         : authorId
       : "00000000-0000-0000-0000-000000000001";
 
-    // Use the channel messaging API instead of agent-specific API
-    const response = await axios.post(
-      `http://localhost:3001/api/messaging/central-channels/${roomId}/messages`,
-      {
-        author_id: validAuthorId, // Fixed: was incorrectly set to serverId
-        content: text,
-        server_id: serverId,
-        source_type: source,
-        metadata: {
-          user_display_name: "User",
-          agentId: agentId,
-        },
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-        validateStatus: (status) => status < 500,
+    // Retry function for network requests
+    const retryRequest = async (
+      requestFn: () => Promise<unknown>,
+      maxRetries = 3
+    ) => {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          return await requestFn();
+        } catch (error: unknown) {
+          if (attempt === maxRetries) {
+            throw error;
+          }
+
+          // Only retry on timeout or network errors
+          const errorCode =
+            error && typeof error === "object" && "code" in error
+              ? (error as { code: string }).code
+              : "";
+          const errorMessage =
+            error && typeof error === "object" && "message" in error
+              ? (error as { message: string }).message
+              : "Unknown error";
+
+          console.log(`Request failed on attempt ${attempt}:`, {
+            errorCode,
+            errorMessage,
+          });
+
+          if (
+            errorCode === "ETIMEDOUT" ||
+            errorCode === "ENOTFOUND" ||
+            errorCode === "ECONNRESET"
+          ) {
+            console.log(
+              `Attempt ${attempt} failed with ${errorCode}, retrying in ${
+                attempt * 1000
+              }ms...`
+            );
+            await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+            continue;
+          }
+
+          // Don't retry on other types of errors
+          console.log(`Not retrying error: ${errorCode} - ${errorMessage}`);
+          throw error;
+        }
       }
-    );
+    };
+
+    // Use the channel messaging API instead of agent-specific API with retry
+    const response = (await retryRequest(() =>
+      axios.post(
+        `https://app.fraktia.ai/api/messaging/central-channels/${roomId}/messages`,
+        {
+          author_id: validAuthorId, // Fixed: was incorrectly set to serverId
+          content: text,
+          server_id: serverId,
+          source_type: source,
+          metadata: {
+            user_display_name: "User",
+            agentId: agentId,
+          },
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          timeout: 15000, // 15 second timeout for message sending
+          validateStatus: (status) => status < 500,
+        }
+      )
+    )) as { status: number; data?: { error?: { message?: string } } };
     console.log(response.data, "response from sendMessageToAgent");
 
     if (response.status >= 400) {
@@ -250,7 +304,7 @@ export async function getMessageHistory({
   try {
     // Use the channel messages API instead of memory API
     const response = await axios.get(
-      `http://localhost:3001/api/messaging/central-channels/${roomId}/messages`,
+      `https://app.fraktia.ai/api/messaging/central-channels/${roomId}/messages`,
       {
         params: {
           limit: limit,
@@ -258,6 +312,7 @@ export async function getMessageHistory({
         headers: {
           "Content-Type": "application/json",
         },
+        timeout: 10000, // 10 second timeout
         validateStatus: (status) => status < 500,
       }
     );
@@ -325,18 +380,70 @@ export async function createChatroom({
       };
     }
 
-    // Start the agent first before creating chatroom
-    try {
-      const startResponse = await axios.post(
-        `http://localhost:3001/api/agents/${agentId}/start`,
-        {},
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-          validateStatus: (status) => status < 500,
+    // Retry function for network requests
+    const retryRequest = async (
+      requestFn: () => Promise<unknown>,
+      maxRetries = 3
+    ) => {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          return await requestFn();
+        } catch (error: unknown) {
+          if (attempt === maxRetries) {
+            throw error;
+          }
+
+          // Only retry on timeout or network errors
+          const errorCode =
+            error && typeof error === "object" && "code" in error
+              ? (error as { code: string }).code
+              : "";
+          const errorMessage =
+            error && typeof error === "object" && "message" in error
+              ? (error as { message: string }).message
+              : "Unknown error";
+
+          console.log(`Agent start attempt ${attempt} failed:`, {
+            errorCode,
+            errorMessage,
+          });
+
+          if (
+            errorCode === "ETIMEDOUT" ||
+            errorCode === "ENOTFOUND" ||
+            errorCode === "ECONNRESET"
+          ) {
+            console.log(
+              `Attempt ${attempt} failed with ${errorCode}, retrying in ${
+                attempt * 1000
+              }ms...`
+            );
+            await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+            continue;
+          }
+
+          // Don't retry on other types of errors
+          console.log(`Not retrying error: ${errorCode} - ${errorMessage}`);
+          throw error;
         }
-      );
+      }
+    };
+
+    // Start the agent first before creating chatroom with retry mechanism
+    try {
+      const startResponse = (await retryRequest(() =>
+        axios.post(
+          `https://app.fraktia.ai/api/agents/${agentId}/start`,
+          {},
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+            timeout: 15000, // 15 second timeout for agent start
+            validateStatus: (status) => status < 500,
+          }
+        )
+      )) as { status: number; data?: unknown };
 
       if (startResponse.status >= 400) {
         console.warn(
@@ -349,7 +456,7 @@ export async function createChatroom({
         console.log("Agent started successfully:", startResponse.data);
       }
     } catch (startError) {
-      console.warn("Error starting agent:", startError);
+      console.warn("Error starting agent after retries:", startError);
       // Continue with chatroom creation even if agent start fails
     }
 
@@ -372,12 +479,13 @@ export async function createChatroom({
     };
 
     const response = await axios.post(
-      `http://localhost:3001/api/messaging/channels`,
+      `https://app.fraktia.ai/api/messaging/channels`,
       roomData,
       {
         headers: {
           "Content-Type": "application/json",
         },
+        timeout: 10000, // 10 second timeout
         validateStatus: (status) => status < 500,
       }
     );
@@ -406,7 +514,7 @@ export async function createChatroom({
     // Add the agent to the newly created channel
     try {
       const addAgentResponse = await axios.post(
-        `http://localhost:3001/api/messaging/central-channels/${newRoomId}/agents`,
+        `https://app.fraktia.ai/api/messaging/central-channels/${newRoomId}/agents`,
         {
           agentId: agentId,
         },
@@ -414,6 +522,7 @@ export async function createChatroom({
           headers: {
             "Content-Type": "application/json",
           },
+          timeout: 10000, // 10 second timeout
           validateStatus: (status) => status < 500,
         }
       );

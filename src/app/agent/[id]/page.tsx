@@ -4,7 +4,8 @@ import React, { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import AgentChat from "@/components/AgentChat";
-import { getAgentDetails, AgentDetails } from "@/actions/agent";
+import { getAgentDetails } from "@/actions/agent";
+import { AgentDetails } from "@/types/agent";
 
 const Agent = () => {
   const params = useParams();
@@ -49,8 +50,18 @@ const Agent = () => {
     <div className="w-full flex-1 justify-between flex flex-col bg-bg">
       <Header agent={true} agentId={agentId} agentDetails={agentDetails} />
 
+      {/* Agent Details Loading State */}
+      {agentDetailsLoading && (
+        <div className="mx-4 mt-4 bg-gray-500/10 border border-gray-500/20 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-gray-400 text-sm">Loading agent details...</p>
+          </div>
+        </div>
+      )}
+
       {/* Agent Details Error State */}
-      {agentDetailsError && (
+      {agentDetailsError && !agentDetailsLoading && (
         <div className="mx-4 mt-4 bg-red-500/10 border border-red-500/20 rounded-lg p-4">
           <p className="text-red-400 text-sm">
             Failed to load agent details: {agentDetailsError}
@@ -59,8 +70,9 @@ const Agent = () => {
       )}
 
       {/* Main Chat Area */}
-
-      <AgentChat agent={agentDetails as AgentDetails} roomId={roomId} />
+      {!agentDetailsLoading && (
+        <AgentChat agent={agentDetails as AgentDetails} roomId={roomId} />
+      )}
     </div>
   );
 };

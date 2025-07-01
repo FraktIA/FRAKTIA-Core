@@ -1,7 +1,7 @@
 "use client";
 import Header from "@/components/Header";
-import Modal from "@/components/Modal";
-import NoAccessComponent from "@/components/NoAccessComponent";
+// import Modal from "@/components/Modal";
+// import NoAccessComponent from "@/components/NoAccessComponent";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Node } from "@xyflow/react";
 import { CharacterConfig } from "@/types/nodes";
@@ -22,7 +22,7 @@ import AgentSection from "@/components/AgentSection";
 
 export default function Manage() {
   const searchParams = useSearchParams();
-  const [allowed, setAllowed] = useState(false);
+  // const [allowed, setAllowed] = useState(false);
   const [currentNodes, setCurrentNodes] = useState<
     Array<{ type?: string; data?: { label?: string } }>
   >([]);
@@ -108,7 +108,9 @@ export default function Manage() {
       OpenAI: "model",
 
       // Voice nodes
-      "Eleven Labs": "voice",
+      // "Eleven Labs": "voice",
+      // Vits: "voice",
+      Piper: "voice",
 
       // Plugin nodes
       Twitter: "plugin",

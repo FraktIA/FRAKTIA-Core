@@ -16,7 +16,7 @@ import {
 import { useAppKitAccount, useDisconnect } from "@reown/appkit/react";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { getAgents } from "@/actions/user";
 import { createChatroom } from "@/actions/agent";
 
@@ -151,6 +151,7 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
   const [creatingRoom, setCreatingRoom] = useState<string | null>(null);
   const { isConnected, address } = useAppKitAccount();
   const router = useRouter();
+  const pathname = usePathname();
   const agentsRefreshTrigger = useAppSelector(selectAgentsRefreshTrigger);
   // const address = "0x8b315372696Ba1aaB397684018f7C33C033187E9";
   const { disconnect } = useDisconnect();
@@ -353,7 +354,10 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
           <button
             className=" cursor-pointer"
             onClick={() => {
-              // router.push("/manage/arena");
+              // Navigate to home if not already there
+              if (pathname !== "/") {
+                router.push("/");
+              }
               dispatch(setActiveMenu("Arena"));
             }}
             aria-expanded={arenaOpen}
@@ -498,8 +502,10 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
           <button
             className="cursor-pointer"
             onClick={() => {
-              // router.push("/manage/agents");
-
+              // Navigate to home if not already there
+              if (pathname !== "/") {
+                router.push("/");
+              }
               dispatch(setActiveMenu("Agents"));
             }}
             aria-expanded={agentsOpen}

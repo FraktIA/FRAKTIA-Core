@@ -1,4 +1,4 @@
-import React, { useState, useCallback, memo } from "react";
+import React, { useState, useCallback, memo, useEffect } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -15,7 +15,7 @@ import { PluginNodeData } from "@/types/nodeData";
 
 interface PluginConfigFormProps {
   localNodeData: PluginNodeData;
-  handleInputChange: (field: string, value: string) => void;
+  handleInputChange: (field: string, value: string | boolean) => void;
 }
 
 const PluginConfigForm: React.FC<PluginConfigFormProps> = ({
@@ -34,6 +34,51 @@ const PluginConfigForm: React.FC<PluginConfigFormProps> = ({
   });
 
   const isTwitter = localNodeData.service === "Twitter";
+
+  // Validation function to check if the plugin node should be marked as configured
+  const isPluginConfigured = useCallback(() => {
+    if (isTwitter) {
+      // For Twitter, require all 4 API credentials
+      return !!(
+        localNodeData.twitterApiKey &&
+        localNodeData.twitterApiKey.trim() !== "" &&
+        localNodeData.twitterApiSecretKey &&
+        localNodeData.twitterApiSecretKey.trim() !== "" &&
+        localNodeData.twitterAccessToken &&
+        localNodeData.twitterAccessToken.trim() !== "" &&
+        localNodeData.twitterAccessTokenSecret &&
+        localNodeData.twitterAccessTokenSecret.trim() !== ""
+      );
+    } else {
+      // For other plugins, require API key
+      return !!(localNodeData.apiKey && localNodeData.apiKey.trim() !== "");
+    }
+  }, [
+    isTwitter,
+    localNodeData.twitterApiKey,
+    localNodeData.twitterApiSecretKey,
+    localNodeData.twitterAccessToken,
+    localNodeData.twitterAccessTokenSecret,
+    localNodeData.apiKey,
+  ]);
+
+  // Effect to update configured status whenever validation criteria changes
+  useEffect(() => {
+    const configured = isPluginConfigured();
+    if (localNodeData.configured !== configured) {
+      handleInputChange("configured", configured);
+    }
+  }, [
+    localNodeData.twitterApiKey,
+    localNodeData.twitterApiSecretKey,
+    localNodeData.twitterAccessToken,
+    localNodeData.twitterAccessTokenSecret,
+    localNodeData.apiKey,
+    localNodeData.configured,
+    localNodeData.service,
+    handleInputChange,
+    isPluginConfigured,
+  ]);
 
   const toggleSection = useCallback((section: string) => {
     setExpandedSections((prev) => ({
@@ -82,9 +127,17 @@ const PluginConfigForm: React.FC<PluginConfigFormProps> = ({
     <div className="space-y-6 h-full p-6 relative">
       {/* Status Indicator */}
       <div className="absolute top-4 right-4 flex items-center gap-2">
-        <Checkmark className="w-4 h-4 text-green-400 drop-shadow-lg" />
-        <span className="text-green-400 text-[10px] font-bold capitalize">
-          Ready
+        <Checkmark
+          className={`w-4 h-4 ${
+            isPluginConfigured() ? "text-green-400" : "text-yellow-400"
+          } drop-shadow-lg`}
+        />
+        <span
+          className={`${
+            isPluginConfigured() ? "text-green-400" : "text-yellow-400"
+          } text-[10px] font-bold capitalize`}
+        >
+          {isPluginConfigured() ? "Ready" : "Setup Required"}
         </span>
       </div>
 

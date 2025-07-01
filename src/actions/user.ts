@@ -250,7 +250,8 @@ export async function deleteAgent(
     // First, call the ElizaOS API to delete the agent
     try {
       const response = await axios.delete(
-        `http://localhost:3001/api/agents/${agentId}`,
+        `https://app.fraktia.ai
+/api/agents/${agentId}`,
         {
           headers: {
             "Content-Type": "application/json",

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   X,
   XCircle,
@@ -10,6 +10,7 @@ import {
   Hash,
   Sparkles,
 } from "lucide-react";
+// import { Checkmark } from "../Checkmark";
 import characterConfigs from "@/constants/characters";
 import {
   MessageExample,
@@ -51,6 +52,30 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
     traits: false,
     style: false,
   });
+
+  // Validation function to check if the character node should be marked as configured
+  const isCharacterConfigured = useCallback(() => {
+    return !!(
+      character.name &&
+      character.name.trim() !== "" &&
+      character.system &&
+      character.system.trim() !== ""
+    );
+  }, [character.name, character.system]);
+
+  // Effect to update configured status whenever validation criteria changes
+  useEffect(() => {
+    const configured = isCharacterConfigured();
+    if (character.configured !== configured) {
+      handleInputChange("configured", configured);
+    }
+  }, [
+    character.name,
+    character.system,
+    character.configured,
+    handleInputChange,
+    isCharacterConfigured,
+  ]);
 
   const toggleSection = useCallback((section: string) => {
     setExpandedSections((prev) => ({
@@ -311,7 +336,23 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
   }, []);
 
   return (
-    <div className="space-y-6 py-5 px-3 bg-dark rounded-xl  relative max-h-[80vh] overflow-y-auto">
+    <div className="space-y-6 py-5 scrollbar-hide px-3 bg-dark rounded-xl  relative max-h-[80vh] overflow-y-auto">
+      {/* Status Indicator */}
+      {/* <div className="absolute top-4 right-4 flex items-center gap-2">
+        <Checkmark
+          className={`w-4 h-4 ${
+            isCharacterConfigured() ? "text-green-400" : "text-yellow-400"
+          } drop-shadow-lg`}
+        />
+        <span
+          className={`${
+            isCharacterConfigured() ? "text-green-400" : "text-yellow-400"
+          } text-[10px] font-bold capitalize`}
+        >
+          {isCharacterConfigured() ? "Ready" : "Setup Required"}
+        </span>
+      </div> */}
+
       {/* Character Template Selection */}
       <div className="pb-4 border-b border-white/10">
         <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
@@ -375,6 +416,7 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
             <div>
               <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
                 Name
+                <span className="text-red-400 ml-1">*</span>
               </label>
               <input
                 type="text"
@@ -389,6 +431,7 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
             <div>
               <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
                 System Prompt
+                <span className="text-red-400 ml-1">*</span>
               </label>
               <textarea
                 value={character.system || ""}
@@ -422,7 +465,7 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
                   }
                   placeholder="Enter biography details..."
                   rows={2}
-                  className="w-full p-3 pr-10 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 resize-none text-xs"
+                  className="w-full p-3 pr-10 bg-bg border border-bg rounded-sm scrollbar-hide text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 resize-none text-xs"
                 />
                 <button
                   onClick={() => removeArrayItem("bio", index)}
@@ -522,7 +565,7 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
                           }
                           placeholder="Message content..."
                           rows={2}
-                          className="w-full p-2 bg-dark border border-dark rounded text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary resize-none text-xs"
+                          className="w-full scrollbar-hide p-2 bg-dark border border-dark rounded text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary resize-none text-xs"
                         />
                       </div>
                     )
@@ -564,7 +607,7 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
                       }
                       placeholder="Example post content..."
                       rows={2}
-                      className="w-full p-3 pr-10 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 resize-none text-sm"
+                      className="w-full p-3 pr-10 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 resize-none scrollbar-hide text-sm"
                     />
                     <button
                       onClick={() => removeArrayItem("postExamples", index)}

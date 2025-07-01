@@ -149,7 +149,7 @@ export default function AgentChat({ agent, roomId }: AgentChatProps) {
   return (
     <div className="flex  flex-col h-[80vh]  w-full  relative     rounded-[15px]  bg-dark">
       {/* Intro Message - Show when no history or only default welcome message */}
-      {!isLoadingHistory && messages.length <= 1 && (
+      {!isLoadingHistory && messages.length < 1 && (
         <div className="flex flex-col relative bottom-[10%] m-auto items-center justify-center gap-4">
           <h3 className="text-[48px] text-white font-semibold">
             Hi, I am {agent?.name || "An Assistant"}!

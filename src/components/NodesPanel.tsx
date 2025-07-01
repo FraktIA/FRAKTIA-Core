@@ -98,7 +98,7 @@ const nodeData: Record<string, NodeItem[]> = {
   ],
   Voice: [
     {
-      name: "Eleven Labs",
+      name: "Piper",
       description:
         "Premium AI voice synthesis with natural intonation and emotion for realistic speech generation",
       highlight: true,

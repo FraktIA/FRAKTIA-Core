@@ -98,9 +98,10 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
   // Add model plugin based on provider
   if (modelNode?.data?.provider === "anthropic") {
     plugins.push("@elizaos/plugin-anthropic");
-  } else if (modelNode?.data?.provider === "openai") {
-    plugins.push("@elizaos/plugin-openai");
   }
+  // else if (modelNode?.data?.provider === "openai") {
+  plugins.push("@elizaos/plugin-openai");
+  // }
 
   // Add other plugins based on plugin nodes
   pluginNodes.forEach((plugin) => {
@@ -124,12 +125,27 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
     settings.secrets.ANTHROPIC_API_KEY = modelNode?.data?.apiKey
       ? String(modelNode.data.apiKey)
       : (process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY as string);
+    settings.secrets.ANTHROPIC_MODEL = modelNode?.data?.model
+      ? String(modelNode.data.model)
+      : (process.env.NEXT_PUBLIC_ANTHROPIC_MODEL as string);
   } else if (modelNode?.data.provider === "openai") {
-    settings.secrets.OPENAI_API_KEY = modelNode?.data?.apiKey
+    settings.secrets.OPENAI_MODEL = modelNode?.data?.model
+      ? String(modelNode.data.model)
+      : (process.env.NEXT_PUBLIC_OPENAI_MODEL as string);
+
+    //add an entry for deepseek if the provider is deepseek
+  } else if (modelNode?.data.provider === "deepseek") {
+    settings.secrets.DEEPSK_API_KEY = modelNode?.data?.apiKey
       ? String(modelNode.data.apiKey)
-      : (process.env.NEXT_PUBLIC_OPENAI_API_KEY as string);
-    settings.secrets.USE_OPENAI_EMBEDDING = "true";
+      : (process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY as string);
+    settings.secrets.DEEPSK_MODEL = modelNode?.data?.model
+      ? String(modelNode.data.model)
+      : (process.env.NEXT_PUBLIC_DEEPSEEK_MODEL as string);
   }
+  settings.secrets.OPENAI_API_KEY = modelNode?.data?.apiKey
+    ? String(modelNode.data.apiKey)
+    : (process.env.NEXT_PUBLIC_OPENAI_API_KEY as string);
+  settings.secrets.USE_OPENAI_EMBEDDING = "true";
   // }
 
   // Add Twitter credentials if Twitter plugin is configured
@@ -218,7 +234,7 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
   // Add voice settings
   if (voiceNode?.data) {
     console.log("Voice node data:", JSON.stringify(voiceNode.data, null, 2));
-    settings.voice.model = String(voiceNode.data.voice || "alloy");
+    settings.voice.model = String(voiceNode.data.voice || "vits");
     settings.voice.language = String(voiceNode.data.language || "en");
     settings.voice.speed = Number(voiceNode.data.speed || 1);
     console.log(
@@ -341,7 +357,7 @@ export async function deployAgentAction(
   description?: string,
   agentId?: string
 ): Promise<{ success: boolean; agentId?: string; error?: string }> {
-  console.log(nodes, "oheoss");
+  // console.log(nodes, "oheoss");
   try {
     // Validate input data
     if (!address || !address.trim()) {
@@ -549,7 +565,7 @@ export async function createAgentOnServer(agentData: ElizaCharacter): Promise<{
   try {
     // Send to API using the correct endpoint and body structure
     const response = await axios.post(
-      "http://localhost:3001/api/agents",
+      "https://app.fraktia.ai/api/agents",
       {
         characterJson: agentData,
       },
@@ -602,7 +618,8 @@ export async function updateAgentOnServer(
     // console.log(JSON.stringify(agentData, null, 2), "agentData to update");
     // Send PATCH request to update existing agent
     const response = await axios.patch(
-      `http://localhost:3001/api/agents/${agentId}`,
+      `https://app.fraktia.ai
+/api/agents/${agentId}`,
 
       agentData,
 

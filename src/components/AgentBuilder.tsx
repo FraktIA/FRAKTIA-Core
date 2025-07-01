@@ -51,9 +51,11 @@ import Image from "next/image";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { selectNodesForAPI } from "@/redux/slices/selectedNodesSlice";
 import { deployAgentAction } from "@/actions/deploy";
+import { whitelist } from "@/constants/whitelist";
 import { useWindowSize } from "@/hooks/useWindowSize";
 import { useAgentBuilderSync } from "@/hooks/useNodesSync";
 import Modal from "@/components/Modal";
+import NoAccessComponent from "@/components/NoAccessComponent";
 import { useAppKitAccount } from "@reown/appkit/react";
 
 const nodeTypes = {
@@ -94,6 +96,8 @@ const getNodeType = (nodeName: string): string => {
     Alloy: "voice",
     Echo: "voice",
     "Eleven Labs": "voice",
+    Vits: "voice",
+    Piper: "voice",
     "OpenAI Whisper": "voice",
     "Azure Speech": "voice",
     "Google Cloud Speech": "voice",
@@ -141,7 +145,8 @@ const getCharacterConfig = (nodeName: string): CharacterConfig | null => {
 const defaultNodeForStep: { [key: string]: string } = {
   Framework: "Eliza OS",
   "AI Model": "Claude",
-  Voice: "Eleven Labs",
+  Voice: "Piper",
+
   Character: "AI Assistant",
   Plugins: "Twitter",
 };
@@ -150,7 +155,7 @@ const defaultNodeForStep: { [key: string]: string } = {
 const getDefaultNodeData = (nodeType: string, nodeName: string) => {
   const baseData = {
     label: nodeName,
-    configured: false,
+    configured: nodeType == "framework" || nodeType == "voice" ? true : false,
   };
 
   switch (nodeType) {
@@ -360,6 +365,8 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
   const [deploymentMessage, setDeploymentMessage] = useState<string | null>(
     null
   );
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [showValidationModal, setShowValidationModal] = useState(false);
   const apiNodesData = useAppSelector(selectNodesForAPI);
   const activeModal = useAppSelector(selectActiveModal);
   const isEditingAgent = useAppSelector(selectIsEditingAgent);
@@ -584,8 +591,70 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
     }
   }, [reactFlow, nodes.length, width, height, isMobile]);
 
+  // Function to validate all nodes are configured
+  const validateNodesConfiguration = useCallback(() => {
+    const errors: string[] = [];
+    const unconfiguredNodeIds: string[] = [];
+
+    nodes.forEach((node) => {
+      if (!node.data.configured) {
+        const nodeLabel = node.data.label || node.type || "Unknown";
+        errors.push(`${nodeLabel} is not configured`);
+        unconfiguredNodeIds.push(node.id);
+      }
+    });
+
+    // Highlight unconfigured nodes in red
+    if (unconfiguredNodeIds.length > 0) {
+      setNodes((nds) =>
+        nds.map((node) => ({
+          ...node,
+          style: {
+            ...node.style,
+            border: unconfiguredNodeIds.includes(node.id)
+              ? "3px solid #ef4444"
+              : undefined,
+            boxShadow: unconfiguredNodeIds.includes(node.id)
+              ? "0 0 10px rgba(239, 68, 68, 0.5)"
+              : undefined,
+          },
+        }))
+      );
+
+      // Clear the red highlighting after 5 seconds
+      setTimeout(() => {
+        setNodes((nds) =>
+          nds.map((node) => ({
+            ...node,
+            style: {
+              ...node.style,
+              border: undefined,
+              boxShadow: undefined,
+            },
+          }))
+        );
+      }, 5000);
+    }
+
+    return { isValid: errors.length === 0, errors };
+  }, [nodes, setNodes]);
+
   // Handle deployment to MongoDB
   const handleDeploy = async () => {
+    // Validate all nodes are configured before deployment
+    const validation = validateNodesConfiguration();
+    if (!validation.isValid) {
+      setValidationErrors(validation.errors);
+      setShowValidationModal(true);
+      return;
+    }
+
+    // Check if user's wallet address is in the whitelist
+    if (!address || !whitelist.includes(address)) {
+      dispatch(openModal("noAccess"));
+      return;
+    }
+
     // Get character name
     const characterName = getCharacterName();
 
@@ -1315,6 +1384,76 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
             </button>
             <div className="flex w-max h-max items-center gap-2  py-5 relative">
               <span className="w-[14px] h-[14px] lg:w-5 lg:h-5  bg-primary rounded-full"></span>
+              <span className="text-base lg:text-[20px] text-primary font-light">
+                FRAKTIA
+              </span>
+            </div>
+          </div>
+        </Modal>
+
+        {/* No Access Modal */}
+        <Modal
+          isOpen={activeModal === "noAccess"}
+          onClose={() => dispatch(closeModal())}
+        >
+          <NoAccessComponent
+            onTryAnotherAccount={() => {
+              dispatch(closeModal());
+              // You can add additional logic here if needed, like disconnecting wallet
+            }}
+          />
+        </Modal>
+
+        {/* Validation Error Modal */}
+        <Modal
+          isOpen={showValidationModal}
+          onClose={() => setShowValidationModal(false)}
+        >
+          <div className="bg-dark justify-center w-[327px] h-auto lg:w-[500px] lg:h-auto rounded-[20px] shadow-lg flex flex-col items-center p-6">
+            <div className="flex flex-col items-center justify-center">
+              <div className="relative w-12 mb-6 h-12">
+                <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
+                  <svg
+                    className="w-6 h-6 text-red-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.963-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <h2 className="text-white mb-4 text-lg font-semibold text-center">
+                Configuration Required
+              </h2>
+              <p className="text-gray-300 mb-6 text-center text-sm">
+                Please configure the following nodes before deployment:
+              </p>
+              <div className="w-full mb-6">
+                {validationErrors.map((error, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 mb-2 text-red-400 text-sm"
+                  >
+                    <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                    <span>{error}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <button
+              onClick={() => setShowValidationModal(false)}
+              className="w-full border border-primary text-primary rounded-[8px] flex items-center justify-center hover:bg-primary hover:text-black transition-colors duration-200 h-[48px]"
+            >
+              <p>Configure Nodes</p>
+            </button>
+            <div className="flex w-max h-max items-center gap-2 py-5 relative">
+              <span className="w-[14px] h-[14px] lg:w-5 lg:h-5 bg-primary rounded-full"></span>
               <span className="text-base lg:text-[20px] text-primary font-light">
                 FRAKTIA
               </span>

@@ -35,7 +35,7 @@ export function ModelNode({
         selected ? "border-lime-400 shadow-glow" : "border-gray-800"
       } rounded-lg transition-all duration-300 hover:border-lime-400/50`}
     >
-      <div className="p-4 min-w-[200px]">
+      <div className="p-4 w-[240px] h-[220px] 5xl:w-[280px] 5xl:h-[260px]">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">

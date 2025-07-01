@@ -35,7 +35,7 @@ export function LogicNode({
         selected ? "border-lime-400 shadow-glow" : "border-gray-800"
       } rounded-lg transition-all duration-300 hover:border-lime-400/50`}
     >
-      <div className="p-4 min-w-[200px]">
+      <div className="p-4 w-[240px] h-[220px] 5xl:w-[280px] 5xl:h-[260px]">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">
@@ -55,16 +55,20 @@ export function LogicNode({
         <h3 className="text-white font-bold text-sm mb-1 tracking-wide">
           {displayName}
         </h3>
-        <p className="text-gray-400 text-xs mb-3 font-mono">LOGIC CONTROL</p>
+        <p className="text-gray-400 text-xs mb-3 font-mono">
+          LOGIC CONTROL • FLOW
+        </p>
 
         {/* Logic Details */}
         <div className="mb-3 p-2 bg-gray-900 rounded-lg border border-gray-800">
           <div className="text-lime-400 text-xs font-bold tracking-wide uppercase mb-1">
-            Condition: {data.condition}
+            {data.condition}
           </div>
           {data.expression && (
             <div className="text-gray-400 text-xs font-mono">
-              Expression: {data.expression}
+              {data.expression.length > 30
+                ? `${data.expression.substring(0, 30)}...`
+                : data.expression}
             </div>
           )}
         </div>
