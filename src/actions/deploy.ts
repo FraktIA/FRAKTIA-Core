@@ -106,11 +106,11 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
   // }
 
   // Add other plugins based on plugin nodes
-  pluginNodes.forEach((plugin) => {
-    if (plugin.data?.service === "Twitter") {
-      plugins.push("@elizaos/plugin-twitter");
-    }
-  });
+  // pluginNodes.forEach((plugin) => {
+  //   if (plugin.data?.service === "Twitter") {
+  //     plugins.push("@elizaos/plugin-twitter");
+  //   }
+  // });
 
   // Default plugins
   plugins.push("@elizaos/plugin-bootstrap");

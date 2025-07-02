@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     title: "FRAKTIΛ | AI-Powered Agents. Zero Code. Full Control.",
     description:
       "Build powerful AI agents visually with Fraktia's no-code flow builder",
-    images: "https://core.fraktia.ai/opengraph-image.jpg",
+    images: "https://core.fraktia.ai/opengraph-image.png",
   },
 };
 

@@ -11,6 +11,7 @@ interface UIState {
   selectedNodeId: string | null;
   activeModal: string | null;
   showWalletDropdown: boolean;
+  showFeedbackModal: boolean; // Add feedback modal state
   agentsRefreshTrigger: number; // Trigger to refresh agents list
   notifications: Array<{
     id: string;
@@ -50,6 +51,7 @@ const initialState: UIState = {
   activeNav: "Framework",
   nodesPanelCategory: "Framework", // Initialize with Framework
   showWalletDropdown: false,
+  showFeedbackModal: false, // Initialize feedback modal state
   agentsRefreshTrigger: 0, // Initialize refresh trigger
   notifications: [],
   theme: "dark",
@@ -137,6 +139,14 @@ const uiSlice = createSlice({
     },
     setShowWalletDropdown: (state, action: PayloadAction<boolean>) => {
       state.showWalletDropdown = action.payload;
+    },
+
+    // Feedback modal
+    toggleFeedbackModal: (state) => {
+      state.showFeedbackModal = !state.showFeedbackModal;
+    },
+    setShowFeedbackModal: (state, action: PayloadAction<boolean>) => {
+      state.showFeedbackModal = action.payload;
     },
 
     // Notifications
@@ -294,6 +304,8 @@ export const {
   closeModal,
   toggleWalletDropdown,
   setShowWalletDropdown,
+  toggleFeedbackModal,
+  setShowFeedbackModal,
   addNotification,
   removeNotification,
   clearNotifications,
@@ -332,6 +344,8 @@ export const selectActiveModal = (state: { ui: UIState }) =>
   state.ui.activeModal;
 export const selectShowWalletDropdown = (state: { ui: UIState }) =>
   state.ui.showWalletDropdown;
+export const selectShowFeedbackModal = (state: { ui: UIState }) =>
+  state.ui.showFeedbackModal;
 export const selectNotifications = (state: { ui: UIState }) =>
   state.ui.notifications;
 export const selectTheme = (state: { ui: UIState }) => state.ui.theme;

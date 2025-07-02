@@ -1,5 +1,6 @@
 "use client";
 import Header from "@/components/Header";
+import FeedbackModal from "@/components/FeedbackModal";
 // import Modal from "@/components/Modal";
 // import NoAccessComponent from "@/components/NoAccessComponent";
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -355,6 +356,9 @@ export default function Manage() {
         {/* Conditional content based on activeMenu */}
         {renderContent()}
       </div>
+
+      {/* Feedback Modal */}
+      <FeedbackModal />
 
       {/* <Modal isOpen={!allowed} onClose={() => {}}>
         <NoAccessComponent onTryAnotherAccount={() => setAllowed(true)} />

@@ -13,6 +13,7 @@ import {
   goToStep,
   selectAgentsRefreshTrigger,
   clearEditingMode,
+  setShowFeedbackModal,
 } from "@/redux/slices/uiSlice";
 import { useAppKitAccount, useDisconnect } from "@reown/appkit/react";
 import Image from "next/image";
@@ -211,6 +212,7 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
       dispatch(setShowWalletDropdown(false));
     }
   };
+
   const handleWalletClick = () => {
     // if (!isConnected) {
     //   // If not connected, directly open the connect modal
@@ -649,6 +651,29 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Feedback Button */}
+      <div className="mt-auto pt-4 border-t border-[#D9D9D9]/20">
+        <button
+          className="flex items-center gap-2 text-xs text-white/70 hover:text-primary transition-colors px-3 py-2 rounded focus:outline-none w-full"
+          onClick={() => dispatch(setShowFeedbackModal(true))}
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+            />
+          </svg>
+          Feedback
+        </button>
       </div>
     </aside>
   );
