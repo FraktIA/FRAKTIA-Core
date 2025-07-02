@@ -6,6 +6,8 @@ import { ReduxProvider } from "@/redux/provider";
 import SidebarShell from "@/components/SidebarShell";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://core.fraktia.ai"),
+
   title: "FRAKTIΛ | AI-Powered Agents. Zero Code. Full Control.",
   description:
     "Build powerful AI agents visually with Fraktia's no-code flow builder",
