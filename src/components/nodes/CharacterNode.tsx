@@ -72,8 +72,8 @@ export const CharacterNode: React.FC<
         {/* Character Details */}
         <div className="mb-3 p-2 bg-gray-900 rounded-lg border border-gray-800">
           <div className="text-lime-400 text-xs font-bold tracking-wide uppercase mb-1">
-            {personality.length > 40
-              ? `${personality.substring(0, 40)}...`
+            {personality.length > 20
+              ? `${personality.substring(0, 20)}...`
               : personality}
           </div>
           {adjectives.length > 0 && (

@@ -1,8 +1,83 @@
 "use server";
 
-import axios from "axios";
 import clientPromise from "@/lib/mongodb";
 import { UserDocument, AgentData } from "@/actions/deploy";
+import { apiClient } from "@/lib/api";
+import { APINode } from "@/redux/slices/selectedNodesSlice";
+import { getAgentDetails } from "@/actions/agent";
+
+// Avatar arrays for different genders
+const MALE_AVATARS = [
+  "https://randomuser.me/api/portraits/men/32.jpg",
+  // "https://randomuser.me/api/portraits/men/65.jpg",
+  // "https://randomuser.me/api/portraits/men/18.jpg",
+  // "https://randomuser.me/api/portraits/men/84.jpg",
+  // "https://randomuser.me/api/portraits/men/45.jpg",
+  // "https://randomuser.me/api/portraits/men/73.jpg",
+  // "https://randomuser.me/api/portraits/men/91.jpg",
+  // "https://randomuser.me/api/portraits/men/22.jpg",
+];
+
+const FEMALE_AVATARS = [
+  "https://randomuser.me/api/portraits/women/41.jpg",
+  // "https://randomuser.me/api/portraits/women/24.jpg",
+  // "https://randomuser.me/api/portraits/women/67.jpg",
+  // "https://randomuser.me/api/portraits/women/15.jpg",
+  // "https://randomuser.me/api/portraits/women/58.jpg",
+  // "https://randomuser.me/api/portraits/women/89.jpg",
+  // "https://randomuser.me/api/portraits/women/33.jpg",
+  // "https://randomuser.me/api/portraits/women/76.jpg",
+];
+
+// Helper function to determine gender from voice configuration
+function getGenderFromVoice(agent: AgentData): "male" | "female" {
+  // Check if agent has nodes configuration
+  if (agent.nodes && Array.isArray(agent.nodes)) {
+    const voiceNode = agent.nodes.find(
+      (node: APINode) => node.type === "voice"
+    );
+    if (voiceNode?.data?.voice) {
+      const voice = String(voiceNode.data.voice).toLowerCase();
+      // Check for common female voice indicators
+      if (
+        voice.includes("female") ||
+        voice.includes("woman") ||
+        voice.includes("feminine")
+      ) {
+        return "female";
+      }
+      // Check for common male voice indicators
+      if (
+        voice.includes("male") ||
+        voice.includes("man") ||
+        voice.includes("masculine")
+      ) {
+        return "male";
+      }
+    }
+  }
+  // Default to male if no voice configuration or unclear
+  return "male";
+}
+
+// Helper function to get gender-appropriate avatar
+function getGenderAppropriateAvatar(agent: AgentData, index?: number): string {
+  if (agent.avatarUrl) {
+    return agent.avatarUrl;
+  }
+
+  const gender = getGenderFromVoice(agent);
+  const avatarArray = gender === "male" ? MALE_AVATARS : FEMALE_AVATARS;
+
+  if (typeof index === "number") {
+    // Use index-based selection for arrays (consistent avatars)
+    return avatarArray[index % avatarArray.length];
+  } else {
+    // Use random selection for single agents
+    const randomIndex = Math.floor(Math.random() * avatarArray.length);
+    return avatarArray[randomIndex];
+  }
+}
 
 export async function addUserToDatabase(address: string): Promise<{
   success: boolean;
@@ -109,6 +184,7 @@ export async function getAgents(address: string): Promise<{
     name: string;
     avatarUrl: string;
     roomId?: string;
+    status?: "active" | "inactive";
   }>;
   error?: string;
 }> {
@@ -141,25 +217,36 @@ export async function getAgents(address: string): Promise<{
       };
     }
 
-    // Generate random avatars from randomuser.me for agents without avatar URLs
-    const randomAvatars = [
-      "https://randomuser.me/api/portraits/women/41.jpg",
-      "https://randomuser.me/api/portraits/men/32.jpg",
-      "https://randomuser.me/api/portraits/men/65.jpg",
-      "https://randomuser.me/api/portraits/women/24.jpg",
-      "https://randomuser.me/api/portraits/men/18.jpg",
-      "https://randomuser.me/api/portraits/women/67.jpg",
-      "https://randomuser.me/api/portraits/men/84.jpg",
-      "https://randomuser.me/api/portraits/women/15.jpg",
-    ];
+    // Transform agent data for the UI with live status checks
+    const transformedAgents = await Promise.all(
+      user.agents.map(async (agent, index) => {
+        // Get live status for each agent
+        let status: "active" | "inactive" = "inactive";
+        try {
+          if (agent.id) {
+            const statusResult = await getAgentDetails(agent.id);
+            if (statusResult.success && statusResult.data) {
+              status = statusResult.data.status || "active";
+            }
+          }
+        } catch (statusError) {
+          console.warn(
+            `Failed to get status for agent ${agent.id}:`,
+            statusError
+          );
+          // Default to active if status check fails
+          status = "active";
+        }
 
-    // Transform agent data for the UI
-    const transformedAgents = user.agents.map((agent, index) => ({
-      id: agent.id || `agent-${index}`,
-      name: agent.name || `Agent ${index + 1}`,
-      avatarUrl: agent.avatarUrl || randomAvatars[index % randomAvatars.length],
-      roomId: agent.roomId || "default-room",
-    }));
+        return {
+          id: agent.id || `agent-${index}`,
+          name: agent.name || `Agent ${index + 1}`,
+          avatarUrl: getGenderAppropriateAvatar(agent, index),
+          roomId: agent.roomId || "default-room",
+          status,
+        };
+      })
+    );
 
     return {
       success: true,
@@ -216,6 +303,11 @@ export async function getAgentById(
       };
     }
 
+    // Apply gender-appropriate avatar if no avatarUrl is set
+    if (!agent.avatarUrl) {
+      agent.avatarUrl = getGenderAppropriateAvatar(agent);
+    }
+
     return {
       success: true,
       agent,
@@ -249,18 +341,7 @@ export async function deleteAgent(
 
     // First, call the ElizaOS API to delete the agent
     try {
-      const response = await axios.delete(
-        `https://app.fraktia.ai
-/api/agents/${agentId}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          // Don't throw on HTTP error status codes
-          validateStatus: (status) => status < 500,
-        }
-      );
+      const response = await apiClient.delete(`/agents/${agentId}`);
 
       if (response.status >= 400) {
         const errorMessage =

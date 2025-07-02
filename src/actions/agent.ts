@@ -1,9 +1,8 @@
 "use server";
-
-import axios from "axios";
 import clientPromise from "@/lib/mongodb";
 import { UserDocument } from "@/actions/deploy";
 import { addressToUuid } from "@/lib/utils";
+import { apiClient } from "@/lib/api";
 
 // // Re-export the helper function for backward compatibility
 // export { addressToUuid } from "@/lib/utils";
@@ -19,6 +18,52 @@ import {
   CreateChatroomParams,
   CreateChatroomResponse,
 } from "@/types/agent";
+// import { AxiosError } from "axios";
+
+// Toggle agent start/stop action
+export async function toggleAgentStatus({
+  agentId,
+  currentStatus,
+}: {
+  agentId: string;
+  currentStatus: "active" | "inactive" | string;
+}): Promise<{ success: boolean; error?: string; newStatus?: string }> {
+  try {
+    if (!agentId) {
+      return { success: false, error: "Agent ID is required" };
+    }
+    // Decide endpoint based on current status
+    const endpoint =
+      currentStatus === "active"
+        ? `/agents/${agentId}/stop`
+        : `/agents/${agentId}/start`;
+    const response = await apiClient.post(endpoint, {});
+    if (response.status >= 400) {
+      const errorMessage =
+        response.data?.message || `HTTP error! status: ${response.status}`;
+      return { success: false, error: errorMessage };
+    }
+    return {
+      success: true,
+      newStatus: currentStatus === "active" ? "inactive" : "active",
+    };
+  } catch (error) {
+    console.error("Error toggling agent status:", error);
+    // console.error(
+    //   "error response",
+    //   error instanceof AxiosError
+    //     ? error.response
+    //     : "Unknown error occurred while toggling agent status"
+    // );
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unknown error occurred while toggling agent status",
+    };
+  }
+}
 
 export async function getAgentMemories({
   agentId,
@@ -42,16 +87,9 @@ export async function getAgentMemories({
       searchParams.append("roomId", roomId);
     }
 
-    // Make API request to ElizaOS
-    const response = await axios.get(
-      `https://app.fraktia.ai/api/memory/${agentId}/memories?${searchParams.toString()}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-        timeout: 10000, // 10 second timeout
-        validateStatus: (status) => status < 500,
-      }
+    // Make API request using the retry-enabled client
+    const response = await apiClient.get(
+      `/memory/${agentId}/memories?${searchParams.toString()}`
     );
 
     if (response.status >= 400) {
@@ -64,7 +102,6 @@ export async function getAgentMemories({
     }
 
     const result = response.data;
-    // console.log(result.data.memories, "res");
 
     return {
       success: true,
@@ -86,16 +123,7 @@ export async function getAgentDetails(
   agentId: string
 ): Promise<GetAgentDetailsResponse> {
   try {
-    const response = await axios.get(
-      `https://app.fraktia.ai/api/agents/${agentId}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-        timeout: 10000, // 10 second timeout
-        validateStatus: (status) => status < 500,
-      }
-    );
+    const response = await apiClient.get(`/agents/${agentId}`);
 
     if (response.status >= 400) {
       const errorMessage =
@@ -113,7 +141,14 @@ export async function getAgentDetails(
       data: result.data,
     };
   } catch (error) {
-    console.error("Error fetching agent details:", error);
+    console.error("Error fetching agent details:", {
+      agentId,
+      errorCode:
+        error && typeof error === "object" && "code" in error
+          ? (error as { code: string }).code
+          : "Unknown",
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
+    });
     return {
       success: false,
       error:
@@ -141,79 +176,22 @@ export async function sendMessageToAgent({
         : authorId
       : "00000000-0000-0000-0000-000000000001";
 
-    // Retry function for network requests
-    const retryRequest = async (
-      requestFn: () => Promise<unknown>,
-      maxRetries = 3
-    ) => {
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          return await requestFn();
-        } catch (error: unknown) {
-          if (attempt === maxRetries) {
-            throw error;
-          }
-
-          // Only retry on timeout or network errors
-          const errorCode =
-            error && typeof error === "object" && "code" in error
-              ? (error as { code: string }).code
-              : "";
-          const errorMessage =
-            error && typeof error === "object" && "message" in error
-              ? (error as { message: string }).message
-              : "Unknown error";
-
-          console.log(`Request failed on attempt ${attempt}:`, {
-            errorCode,
-            errorMessage,
-          });
-
-          if (
-            errorCode === "ETIMEDOUT" ||
-            errorCode === "ENOTFOUND" ||
-            errorCode === "ECONNRESET"
-          ) {
-            console.log(
-              `Attempt ${attempt} failed with ${errorCode}, retrying in ${
-                attempt * 1000
-              }ms...`
-            );
-            await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
-            continue;
-          }
-
-          // Don't retry on other types of errors
-          console.log(`Not retrying error: ${errorCode} - ${errorMessage}`);
-          throw error;
-        }
-      }
-    };
-
-    // Use the channel messaging API instead of agent-specific API with retry
-    const response = (await retryRequest(() =>
-      axios.post(
-        `https://app.fraktia.ai/api/messaging/central-channels/${roomId}/messages`,
-        {
-          author_id: validAuthorId, // Fixed: was incorrectly set to serverId
-          content: text,
-          server_id: serverId,
-          source_type: source,
-          metadata: {
-            user_display_name: "User",
-            agentId: agentId,
-          },
+    // Send message using the retry-enabled API client
+    const response = await apiClient.post(
+      `/messaging/central-channels/${roomId}/messages`,
+      {
+        author_id: validAuthorId,
+        content: text,
+        server_id: serverId,
+        source_type: source,
+        metadata: {
+          user_display_name: "User",
+          agentId: agentId,
         },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-          timeout: 15000, // 15 second timeout for message sending
-          validateStatus: (status) => status < 500,
-        }
-      )
-    )) as { status: number; data?: { error?: { message?: string } } };
-    console.log(response.data, "response from sendMessageToAgent");
+      }
+    );
+
+    // console.log(response.data, "response from sendMessageToAgent");
 
     if (response.status >= 400) {
       const errorMessage =
@@ -224,8 +202,6 @@ export async function sendMessageToAgent({
         error: errorMessage,
       };
     }
-
-    // const result = response.data;
 
     // After successfully sending the message, wait for agent response by polling
     const maxRetries = 10; // Maximum number of polling attempts
@@ -276,14 +252,24 @@ export async function sendMessageToAgent({
     console.warn(
       "Agent response not received within timeout, returning current messages"
     );
+
+    // Get the final message history
     const finalHistoryResponse = await getMessageHistory({
       roomId: roomId,
       limit: 50,
     });
 
+    // If we have the user's message but no agent response, indicate timeout
+    const finalMessages = finalHistoryResponse.success
+      ? finalHistoryResponse.data || []
+      : [];
+
+    // Return with a flag indicating timeout occurred
     return {
-      success: true,
-      data: finalHistoryResponse.success ? finalHistoryResponse.data || [] : [],
+      success: false,
+      error:
+        "Agent did not respond within the expected time. The message was sent but no response was received.",
+      data: finalMessages,
     };
   } catch (error) {
     console.error("Error sending message to agent:", error);
@@ -302,18 +288,13 @@ export async function getMessageHistory({
   limit = 50,
 }: MessageHistoryParams): Promise<MessageHistoryResponse> {
   try {
-    // Use the channel messages API instead of memory API
-    const response = await axios.get(
-      `https://app.fraktia.ai/api/messaging/central-channels/${roomId}/messages`,
+    // Use the retry-enabled API client
+    const response = await apiClient.get(
+      `/messaging/central-channels/${roomId}/messages`,
       {
         params: {
           limit: limit,
         },
-        headers: {
-          "Content-Type": "application/json",
-        },
-        timeout: 10000, // 10 second timeout
-        validateStatus: (status) => status < 500,
       }
     );
 
@@ -327,7 +308,6 @@ export async function getMessageHistory({
     }
 
     const result = response.data;
-    console.log("channel messages", result.data);
 
     return {
       success: true,
@@ -379,71 +359,22 @@ export async function createChatroom({
         error: "Agent not found for this user",
       };
     }
+    // If agent already has a roomId, return it
+    if (agent.roomId) {
+      console.log("roomid found");
+      return {
+        success: true,
+        roomId: agent.roomId,
+        isNewRoom: false,
+      };
+    }
 
-    // Retry function for network requests
-    const retryRequest = async (
-      requestFn: () => Promise<unknown>,
-      maxRetries = 3
-    ) => {
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          return await requestFn();
-        } catch (error: unknown) {
-          if (attempt === maxRetries) {
-            throw error;
-          }
-
-          // Only retry on timeout or network errors
-          const errorCode =
-            error && typeof error === "object" && "code" in error
-              ? (error as { code: string }).code
-              : "";
-          const errorMessage =
-            error && typeof error === "object" && "message" in error
-              ? (error as { message: string }).message
-              : "Unknown error";
-
-          console.log(`Agent start attempt ${attempt} failed:`, {
-            errorCode,
-            errorMessage,
-          });
-
-          if (
-            errorCode === "ETIMEDOUT" ||
-            errorCode === "ENOTFOUND" ||
-            errorCode === "ECONNRESET"
-          ) {
-            console.log(
-              `Attempt ${attempt} failed with ${errorCode}, retrying in ${
-                attempt * 1000
-              }ms...`
-            );
-            await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
-            continue;
-          }
-
-          // Don't retry on other types of errors
-          console.log(`Not retrying error: ${errorCode} - ${errorMessage}`);
-          throw error;
-        }
-      }
-    };
-
-    // Start the agent first before creating chatroom with retry mechanism
+    // Start the agent first before creating chatroom
     try {
-      const startResponse = (await retryRequest(() =>
-        axios.post(
-          `https://app.fraktia.ai/api/agents/${agentId}/start`,
-          {},
-          {
-            headers: {
-              "Content-Type": "application/json",
-            },
-            timeout: 15000, // 15 second timeout for agent start
-            validateStatus: (status) => status < 500,
-          }
-        )
-      )) as { status: number; data?: unknown };
+      const startResponse = await apiClient.post(
+        `/agents/${agentId}/start`,
+        {}
+      );
 
       if (startResponse.status >= 400) {
         console.warn(
@@ -456,18 +387,16 @@ export async function createChatroom({
         console.log("Agent started successfully:", startResponse.data);
       }
     } catch (startError) {
-      console.warn("Error starting agent after retries:", startError);
+      console.warn("Error starting agent:", startError);
       // Continue with chatroom creation even if agent start fails
     }
 
-    // If agent already has a roomId, return it
-    if (agent.roomId) {
-      return {
-        success: true,
-        roomId: agent.roomId,
-        isNewRoom: false,
-      };
-    }
+    console.log(
+      "Creating new room for agent:",
+      agentId,
+      "for user:",
+      userAddress
+    );
 
     // Create a new room using ElizaOS API
     const roomData = {
@@ -478,17 +407,7 @@ export async function createChatroom({
       type: "text",
     };
 
-    const response = await axios.post(
-      `https://app.fraktia.ai/api/messaging/channels`,
-      roomData,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-        timeout: 10000, // 10 second timeout
-        validateStatus: (status) => status < 500,
-      }
-    );
+    const response = await apiClient.post(`/messaging/channels`, roomData);
 
     if (response.status >= 400) {
       const errorMessage =
@@ -513,17 +432,10 @@ export async function createChatroom({
 
     // Add the agent to the newly created channel
     try {
-      const addAgentResponse = await axios.post(
-        `https://app.fraktia.ai/api/messaging/central-channels/${newRoomId}/agents`,
+      const addAgentResponse = await apiClient.post(
+        `/messaging/central-channels/${newRoomId}/agents`,
         {
           agentId: agentId,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-          timeout: 10000, // 10 second timeout
-          validateStatus: (status) => status < 500,
         }
       );
 

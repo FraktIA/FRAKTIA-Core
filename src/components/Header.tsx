@@ -11,9 +11,11 @@ import {
   useAppKitAccount,
   useDisconnect,
 } from "@reown/appkit/react";
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
+import { toggleAgentStatus } from "@/actions/agent";
 import Image from "next/image";
 import { AgentDetails } from "@/types/agent";
+// Start/stop agent toggle state
 
 const Header = ({
   agentId,
@@ -34,6 +36,16 @@ const Header = ({
   const isEditingAgent = useAppSelector(selectIsEditingAgent);
   const editingAgentDetails = useAppSelector(selectEditingAgentDetails);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Start/stop agent toggle state
+  const [isToggling, setIsToggling] = useState(false);
+  const [agentStatus, setAgentStatus] = useState<
+    "active" | "inactive" | undefined | string
+  >(agentDetails?.status);
+
+  useEffect(() => {
+    setAgentStatus(agentDetails?.status);
+  }, [agentDetails]);
 
   // Debug logging
   useEffect(() => {
@@ -83,6 +95,21 @@ const Header = ({
     }
   };
 
+  const handleToggleAgent = async () => {
+    if (!agentDetails || !agentId) return;
+    setIsToggling(true);
+    const result = await toggleAgentStatus({
+      agentId,
+      currentStatus: agentStatus || "inactive",
+    });
+    if (result.success && result.newStatus) {
+      setAgentStatus(result.newStatus);
+    }
+    setIsToggling(false);
+  };
+
+  console.log(agentDetails);
+
   return (
     <div
       className={`bg-dark ${
@@ -98,30 +125,56 @@ const Header = ({
           className={`flex gap-4.5 justify-center  h-[97px] rounded-[20px] items-center cursor-pointer transition-all duration-300`}
         >
           <div>
-            <Image
-              src={"https://randomuser.me/api/portraits/men/32.jpg"}
-              width={67}
-              height={67}
-              alt={"agent"}
-              className="rounded-full"
-            />
+            {agentDetails && (
+              <Image
+                src={agentDetails.avatarUrl}
+                width={67}
+                height={67}
+                alt={"agent"}
+                className="rounded-full"
+              />
+            )}
           </div>
           <div className="flex flex-col gap-2">
             <p className="text-white font-semibold text-[20px]">
-              {agentDetails?.name || "Unknown Agent"}
+              {agentDetails?.name || "..."}
             </p>
             <div className="flex items-center gap-2">
               <p className="text-white/70 font-light text-xs">ID: {agentId}</p>
-              {agentDetails?.status && (
-                <span
-                  className={`text-xs px-2 py-1 rounded-full ${
-                    agentDetails.status === "active"
-                      ? "bg-green-500/20 text-green-400"
-                      : "bg-red-500/20 text-red-400"
-                  }`}
-                >
-                  {agentDetails.status}
-                </span>
+              {agentStatus && (
+                <>
+                  <span
+                    className={`text-xs px-2 py-1 rounded-full ${
+                      agentStatus === "active"
+                        ? "bg-green-500/20 text-green-400"
+                        : "bg-red-500/20 text-red-400"
+                    }`}
+                  >
+                    {agentStatus}
+                  </span>
+                  <button
+                    onClick={handleToggleAgent}
+                    disabled={isToggling}
+                    title={
+                      agentStatus === "active" ? "Stop Agent" : "Start Agent"
+                    }
+                    className={`ml-2 px-2 py-1 rounded border text-xs transition-colors ${
+                      agentStatus === "active"
+                        ? "border-red-400 text-red-400 hover:bg-red-500/10"
+                        : "border-green-400 text-green-400 hover:bg-green-500/10"
+                    } ${
+                      isToggling
+                        ? "opacity-50 cursor-not-allowed"
+                        : "cursor-pointer"
+                    }`}
+                  >
+                    {isToggling
+                      ? "..."
+                      : agentStatus === "active"
+                      ? "Stop"
+                      : "Start"}
+                  </button>
+                </>
               )}
             </div>
           </div>

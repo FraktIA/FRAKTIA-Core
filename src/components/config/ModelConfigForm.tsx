@@ -1,6 +1,6 @@
 import React, { useState, useCallback, memo, useEffect } from "react";
 import { ChevronDown, ChevronUp, Brain, Settings, Key } from "lucide-react";
-import { Checkmark } from "../Checkmark";
+// import { Checkmark } from "../Checkmark";
 import { ModelNodeData } from "@/types/nodeData";
 
 interface ModelConfigFormProps {
@@ -141,7 +141,7 @@ const ModelConfigForm: React.FC<ModelConfigFormProps> = memo(
     return (
       <div className="space-y-6 h-full p-6 relative">
         {/* Status Indicator */}
-        <div className="absolute top-4 right-4 flex items-center gap-2">
+        {/* <div className="absolute top-4 right-4 flex items-center gap-2">
           <Checkmark
             className={`w-4 h-4 ${
               isModelConfigured() ? "text-green-400" : "text-yellow-400"
@@ -154,7 +154,7 @@ const ModelConfigForm: React.FC<ModelConfigFormProps> = memo(
           >
             {isModelConfigured() ? "Ready" : "Setup Required"}
           </span>
-        </div>
+        </div> */}
 
         {/* Model Selection */}
         <div className="space-y-4">

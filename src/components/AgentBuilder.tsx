@@ -388,6 +388,20 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
       "AgentBuilder - isLastStep:",
       agentBuilderFlow.currentStep === agentBuilderFlow.totalSteps
     );
+
+    // Clean up localStorage if not in editing mode
+    if (!isEditingAgent) {
+      const editingNodes = localStorage.getItem("editingAgentNodes");
+      if (editingNodes) {
+        console.log("Cleaning up leftover editing nodes from localStorage");
+        localStorage.removeItem("editingAgentNodes");
+      }
+      const editingInfo = sessionStorage.getItem("editingAgentInfo");
+      if (editingInfo) {
+        console.log("Cleaning up leftover editing info from sessionStorage");
+        sessionStorage.removeItem("editingAgentInfo");
+      }
+    }
   }, [
     isEditingAgent,
     agentBuilderFlow.currentStep,
@@ -417,95 +431,119 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
   // Load agent nodes when editing mode is enabled
   useEffect(() => {
     if (isEditingAgent) {
-      try {
-        const storedNodes = localStorage.getItem("editingAgentNodes");
-        if (storedNodes) {
-          const apiNodes = JSON.parse(storedNodes);
-          console.log("Loading agent nodes for editing:", apiNodes);
+      // Add a small delay to ensure localStorage is available
+      const loadAgentNodes = () => {
+        try {
+          const storedNodes = localStorage.getItem("editingAgentNodes");
+          if (storedNodes) {
+            const apiNodes = JSON.parse(storedNodes);
+            console.log("Loading agent nodes for editing:", apiNodes);
 
-          // Convert API nodes to ReactFlow nodes
-          const reactFlowNodes = apiNodes.map(
-            (
-              apiNode: { type: string; data: Record<string, unknown> },
-              index: number
-            ) => {
-              const getNodePosition = (nodeType: string, index: number) => {
-                const typePositions: {
-                  [key: string]: { x: number; y: number };
-                } = {
-                  framework: { x: 0, y: 0 },
-                  model: { x: 450, y: 150 },
-                  voice: { x: 100, y: 550 },
-                  character: { x: 850, y: 150 },
-                  plugin: { x: 470, y: 659 },
+            // Convert API nodes to ReactFlow nodes
+            const reactFlowNodes = apiNodes.map(
+              (
+                apiNode: { type: string; data: Record<string, unknown> },
+                index: number
+              ) => {
+                const getNodePosition = (nodeType: string, index: number) => {
+                  const typePositions: {
+                    [key: string]: { x: number; y: number };
+                  } = {
+                    framework: { x: 0, y: 0 },
+                    model: { x: 450, y: 150 },
+                    voice: { x: 100, y: 550 },
+                    character: { x: 850, y: 150 },
+                    plugin: { x: 470, y: 659 },
+                  };
+                  return (
+                    typePositions[nodeType] || {
+                      x: index * 200,
+                      y: index * 100,
+                    }
+                  );
                 };
-                return (
-                  typePositions[nodeType] || { x: index * 200, y: index * 100 }
-                );
-              };
 
-              return {
-                id: `${apiNode.type}-${Date.now()}-${index}`,
-                type: apiNode.type || "default",
-                position: getNodePosition(apiNode.type || "default", index),
-                data: {
-                  ...apiNode.data,
-                  label:
-                    apiNode.data.label ||
-                    apiNode.data.name ||
-                    `${apiNode.type} Node`,
-                  configured: true,
-                },
-                selected: false,
-              };
-            }
-          );
-
-          setNodes(reactFlowNodes);
-
-          // Create edges to connect nodes (framework node connects to all others)
-          const frameworkNode = reactFlowNodes.find(
-            (node: Node) => node.type === "framework"
-          );
-          if (frameworkNode) {
-            const newEdges: Edge[] = [];
-            reactFlowNodes.forEach((node: Node) => {
-              if (node.type !== "framework") {
-                newEdges.push({
-                  id: `e-${frameworkNode.id}-${node.id}`,
-                  source: frameworkNode.id,
-                  target: node.id,
-                  type: "smoothstep",
-                  animated: true,
-                });
+                return {
+                  id: `${apiNode.type}-${Date.now()}-${index}`,
+                  type: apiNode.type || "default",
+                  position: getNodePosition(apiNode.type || "default", index),
+                  data: {
+                    ...apiNode.data,
+                    label:
+                      apiNode.data.label ||
+                      apiNode.data.name ||
+                      `${apiNode.type} Node`,
+                    configured: true,
+                  },
+                  selected: false,
+                };
               }
-            });
-            setEdges(newEdges);
+            );
+
+            // Clear existing nodes first to prevent conflicts
+            setNodes([]);
+            setEdges([]);
+
+            // Set new nodes with a small delay to ensure state is clean
+            setTimeout(() => {
+              setNodes(reactFlowNodes);
+
+              // Create edges to connect nodes (framework node connects to all others)
+              const frameworkNode = reactFlowNodes.find(
+                (node: Node) => node.type === "framework"
+              );
+              if (frameworkNode) {
+                const newEdges: Edge[] = [];
+                reactFlowNodes.forEach((node: Node) => {
+                  if (node.type !== "framework") {
+                    newEdges.push({
+                      id: `e-${frameworkNode.id}-${node.id}`,
+                      source: frameworkNode.id,
+                      target: node.id,
+                      type: "smoothstep",
+                      animated: true,
+                    });
+                  }
+                });
+                setEdges(newEdges);
+              }
+
+              // Sync with Redux store
+              syncAllNodes(reactFlowNodes);
+
+              // Set to last step when loading a saved agent
+              dispatch(goToStep(agentBuilderFlow.totalSteps));
+
+              // Fit view to show all loaded nodes
+              setTimeout(() => {
+                reactFlow.fitView({ padding: 0.1 });
+              }, 100);
+            }, 50);
+
+            // Clear the localStorage data after loading
+            localStorage.removeItem("editingAgentNodes");
+            console.log("Cleared localStorage after loading nodes");
+            return true; // Indicate successful loading
           }
-
-          // Set to last step when loading a saved agent - do this after nodes are set
-          setTimeout(() => {
-            console.log("Setting to last step for editing mode");
-            dispatch(goToStep(agentBuilderFlow.totalSteps));
-          }, 50);
-
-          // Fit view to show all loaded nodes
-          setTimeout(() => {
-            reactFlow.fitView({ padding: 0.1 });
-          }, 100);
-
-          // Clear the localStorage data after loading
-          localStorage.removeItem("editingAgentNodes");
-          console.log("Cleared localStorage after loading nodes");
+        } catch (error) {
+          console.error("Error loading agent nodes:", error);
         }
-      } catch (error) {
-        console.error("Error loading agent nodes:", error);
+        return false; // Indicate no nodes loaded
+      };
+
+      // Try to load immediately, if it fails, retry after a delay
+      if (!loadAgentNodes()) {
+        console.log("Agent nodes not found immediately, retrying...");
+        setTimeout(() => {
+          loadAgentNodes();
+        }, 100);
       }
     }
   }, [
     isEditingAgent,
     setNodes,
     setEdges,
+    syncAllNodes,
     reactFlow,
     dispatch,
     agentBuilderFlow.totalSteps,

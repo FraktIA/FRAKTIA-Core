@@ -1,8 +1,9 @@
 "use server";
 
-import axios from "axios";
 import clientPromise from "@/lib/mongodb";
+import { apiClient } from "@/lib/api";
 import { APINode } from "@/redux/slices/selectedNodesSlice";
+import { CharacterNodeData } from "@/types/nodeData";
 
 export interface AgentData {
   id?: string;
@@ -34,6 +35,7 @@ interface MessageExample {
 
 interface ElizaSettings {
   secrets: Record<string, string>;
+  ANTHROPIC_API_KEY?: string;
   voice: {
     model?: string;
     language?: string;
@@ -87,7 +89,7 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
   const pluginNodes = agentData.nodes.filter((node) => node.type === "plugin");
 
   // Extract character data
-  const characterData = characterNode?.data;
+  const characterData = characterNode?.data as CharacterNodeData | undefined;
   const characterName = String(
     characterData?.name || agentData.name || "AI Assistant"
   );
@@ -97,7 +99,7 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
 
   // Add model plugin based on provider
   if (modelNode?.data?.provider === "anthropic") {
-    plugins.push("@elizaos/plugin-anthropic");
+    plugins.push("@elizaos-plugins/plugin-anthropic");
   }
   // else if (modelNode?.data?.provider === "openai") {
   plugins.push("@elizaos/plugin-openai");
@@ -120,25 +122,22 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
   };
 
   // Add API keys if available
-  // if (modelNode?.data?.apiKey) {
-  if (modelNode?.data.provider === "anthropic") {
+  if (modelNode?.data?.provider === "anthropic") {
     settings.secrets.ANTHROPIC_API_KEY = modelNode?.data?.apiKey
       ? String(modelNode.data.apiKey)
       : (process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY as string);
-    settings.secrets.ANTHROPIC_MODEL = modelNode?.data?.model
+    settings.secrets.ANTHROPIC_SMALL_MODEL = modelNode?.data?.model
       ? String(modelNode.data.model)
       : (process.env.NEXT_PUBLIC_ANTHROPIC_MODEL as string);
   } else if (modelNode?.data.provider === "openai") {
     settings.secrets.OPENAI_MODEL = modelNode?.data?.model
       ? String(modelNode.data.model)
       : (process.env.NEXT_PUBLIC_OPENAI_MODEL as string);
-
-    //add an entry for deepseek if the provider is deepseek
-  } else if (modelNode?.data.provider === "deepseek") {
-    settings.secrets.DEEPSK_API_KEY = modelNode?.data?.apiKey
+  } else if (modelNode?.data?.provider === "deepseek") {
+    settings.secrets.DEEPSEEK_API_KEY = modelNode?.data?.apiKey
       ? String(modelNode.data.apiKey)
       : (process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY as string);
-    settings.secrets.DEEPSK_MODEL = modelNode?.data?.model
+    settings.secrets.DEEPSEEK_MODEL = modelNode?.data?.model
       ? String(modelNode.data.model)
       : (process.env.NEXT_PUBLIC_DEEPSEEK_MODEL as string);
   }
@@ -153,10 +152,45 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
     (plugin) => plugin.data?.service === "Twitter"
   );
   if (twitterPlugin) {
-    settings.secrets.TWITTER_USERNAME = process.env.TWITTER_USERNAME || "";
-    settings.secrets.TWITTER_PASSWORD = process.env.TWITTER_PASSWORD || "";
-    settings.secrets.TWITTER_EMAIL = process.env.TWITTER_EMAIL || "";
-    settings.secrets.TWITTER_2FA_SECRET = process.env.TWITTER_2FA_SECRET || "";
+    // Use form data first, fallback to environment variables
+    settings.secrets.TWITTER_USERNAME = String(
+      twitterPlugin.data?.twitterUsername || process.env.TWITTER_USERNAME || ""
+    );
+    settings.secrets.TWITTER_PASSWORD = String(
+      twitterPlugin.data?.twitterPassword || process.env.TWITTER_PASSWORD || ""
+    );
+    settings.secrets.TWITTER_EMAIL = String(
+      twitterPlugin.data?.twitterEmail || process.env.TWITTER_EMAIL || ""
+    );
+    settings.secrets.TWITTER_2FA_SECRET = String(
+      twitterPlugin.data?.twitter2faSecret ||
+        process.env.TWITTER_2FA_SECRET ||
+        ""
+    );
+
+    // API credentials from form
+    if (twitterPlugin.data?.twitterApiKey) {
+      settings.secrets.TWITTER_API_KEY = String(
+        twitterPlugin.data.twitterApiKey
+      );
+    }
+    if (twitterPlugin.data?.twitterApiSecretKey) {
+      settings.secrets.TWITTER_API_SECRET_KEY = String(
+        twitterPlugin.data.twitterApiSecretKey
+      );
+    }
+    if (twitterPlugin.data?.twitterAccessToken) {
+      settings.secrets.TWITTER_ACCESS_TOKEN = String(
+        twitterPlugin.data.twitterAccessToken
+      );
+    }
+    if (twitterPlugin.data?.twitterAccessTokenSecret) {
+      settings.secrets.TWITTER_ACCESS_TOKEN_SECRET = String(
+        twitterPlugin.data.twitterAccessTokenSecret
+      );
+    }
+
+    // Configuration options
     settings.secrets.TWITTER_DRY_RUN = String(
       twitterPlugin.data?.twitterDryRun || false
     );
@@ -170,10 +204,10 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
       twitterPlugin.data?.twitterPollInterval || 120
     );
     settings.secrets.TWITTER_POST_ENABLE = String(
-      twitterPlugin.data?.twitterPostEnable || false
+      twitterPlugin.data?.twitterPostEnable || true
     );
     settings.secrets.TWITTER_POST_INTERVAL_MIN = String(
-      twitterPlugin.data?.twitterPostIntervalMin || 90
+      twitterPlugin.data?.twitterPostIntervalMin || 30
     );
     settings.secrets.TWITTER_POST_INTERVAL_MAX = String(
       twitterPlugin.data?.twitterPostIntervalMax || 180
@@ -233,14 +267,9 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
 
   // Add voice settings
   if (voiceNode?.data) {
-    console.log("Voice node data:", JSON.stringify(voiceNode.data, null, 2));
     settings.voice.model = String(voiceNode.data.voice || "vits");
     settings.voice.language = String(voiceNode.data.language || "en");
     settings.voice.speed = Number(voiceNode.data.speed || 1);
-    console.log(
-      "Voice settings applied:",
-      JSON.stringify(settings.voice, null, 2)
-    );
   } else {
     console.log("No voice node found or voice node has no data");
   }
@@ -418,7 +447,9 @@ export async function deployAgentAction(
       }
 
       elizaAgentId = updateData.id;
-      console.log("Agent updated on ElizaOS server with ID:", elizaAgentId);
+      console.log("Agent updated on ElizaOS server with ID:", updateData);
+      console.log("previde agentId:", agentId);
+      console.log("new agentId:", elizaAgentId);
     } else {
       // Create new agent
       const {
@@ -447,7 +478,7 @@ export async function deployAgentAction(
     let updateResult;
 
     if (agentId) {
-      // Update existing agent in database
+      // Update existing agent in database - only update nodes and name
       updateResult = await collection.updateOne(
         {
           address: address,
@@ -455,7 +486,9 @@ export async function deployAgentAction(
         },
         {
           $set: {
-            "agents.$": agentWithId,
+            "agents.$.nodes": agentWithId.nodes,
+            "agents.$.name": agentWithId.name,
+            "agents.$.updatedAt": new Date(),
             updatedAt: new Date(),
           },
         }
@@ -564,19 +597,9 @@ export async function createAgentOnServer(agentData: ElizaCharacter): Promise<{
 }> {
   try {
     // Send to API using the correct endpoint and body structure
-    const response = await axios.post(
-      "https://app.fraktia.ai/api/agents",
-      {
-        characterJson: agentData,
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        validateStatus: (status) => status < 500,
-      }
-    );
+    const response = await apiClient.post("/agents", {
+      characterJson: agentData,
+    });
 
     if (response.status >= 400) {
       const errorMessage =
@@ -617,20 +640,7 @@ export async function updateAgentOnServer(
   try {
     // console.log(JSON.stringify(agentData, null, 2), "agentData to update");
     // Send PATCH request to update existing agent
-    const response = await axios.patch(
-      `https://app.fraktia.ai
-/api/agents/${agentId}`,
-
-      agentData,
-
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        validateStatus: (status) => status < 500,
-      }
-    );
+    const response = await apiClient.patch(`/agents/${agentId}`, agentData);
 
     if (response.status >= 400) {
       const errorMessage =

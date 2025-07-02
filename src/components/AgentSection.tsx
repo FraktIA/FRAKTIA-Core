@@ -8,6 +8,7 @@ import {
   setShowNodesPanel,
   resetAgentBuilderFlow,
   selectAgentsRefreshTrigger,
+  clearEditingMode,
 } from "@/redux/slices/uiSlice";
 import { getAgents } from "@/actions/user";
 
@@ -82,7 +83,8 @@ const AgentSection = () => {
   const hasAgents = userAgents.length > 0;
 
   const handleCreateAgent = () => {
-    // Reset agent builder flow and navigate to Arena
+    // Clear editing mode and reset agent builder flow for new agent creation
+    dispatch(clearEditingMode());
     dispatch(resetAgentBuilderFlow());
     dispatch(setActiveMenu("Arena"));
     dispatch(setShowNodesPanel(true));
@@ -181,7 +183,7 @@ const AgentSection = () => {
         </button>
       </div>
 
-      {hasAgents && (
+      {hasAgents && !loadingAgents && (
         <div className="flex  flex-col gap-7 items-center justify-center relative">
           {userAgents.map((agent) => (
             <AgentBox

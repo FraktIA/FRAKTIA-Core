@@ -12,6 +12,7 @@ import {
   toggleWalletDropdown,
   goToStep,
   selectAgentsRefreshTrigger,
+  clearEditingMode,
 } from "@/redux/slices/uiSlice";
 import { useAppKitAccount, useDisconnect } from "@reown/appkit/react";
 import Image from "next/image";
@@ -502,6 +503,8 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
           <button
             className="cursor-pointer"
             onClick={() => {
+              // Clear editing mode when navigating to Agents
+              dispatch(clearEditingMode());
               // Navigate to home if not already there
               if (pathname !== "/") {
                 router.push("/");

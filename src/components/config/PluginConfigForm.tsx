@@ -10,7 +10,7 @@ import {
   Clock,
   Target,
 } from "lucide-react";
-import { Checkmark } from "../Checkmark";
+// import { Checkmark } from "../Checkmark";
 import { PluginNodeData } from "@/types/nodeData";
 
 interface PluginConfigFormProps {
@@ -126,7 +126,7 @@ const PluginConfigForm: React.FC<PluginConfigFormProps> = ({
   return (
     <div className="space-y-6 h-full p-6 relative">
       {/* Status Indicator */}
-      <div className="absolute top-4 right-4 flex items-center gap-2">
+      {/* <div className="absolute top-4 right-4 flex items-center gap-2">
         <Checkmark
           className={`w-4 h-4 ${
             isPluginConfigured() ? "text-green-400" : "text-yellow-400"
@@ -139,7 +139,7 @@ const PluginConfigForm: React.FC<PluginConfigFormProps> = ({
         >
           {isPluginConfigured() ? "Ready" : "Setup Required"}
         </span>
-      </div>
+      </div> */}
 
       {/* Plugin Selection */}
       <div className="space-y-4">

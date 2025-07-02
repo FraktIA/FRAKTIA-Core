@@ -29,6 +29,9 @@ export interface AgentDetails {
   id: string;
   name: string;
   status: "active" | "inactive";
+  avatarUrl: string;
+  description?: string;
+  roomId?: string;
 }
 
 export interface GetAgentDetailsResponse {
