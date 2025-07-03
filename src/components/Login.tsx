@@ -3,12 +3,16 @@ import Logo from "@/components/Logo";
 import { useAppKit } from "@reown/appkit/react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import Image from "next/image";
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
+import { useAppKitAccount } from "@reown/appkit/react";
+import { useRouter } from "next/navigation";
 // import { DynamicBackground } from "@/components/Background";
 import { AgentCard } from "@/components/AgentCard";
 
 export default function Login() {
   const { open } = useAppKit();
+  const { isConnected } = useAppKitAccount();
+  const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: containerRef,
@@ -16,6 +20,13 @@ export default function Login() {
   });
 
   const textY = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
+
+  // Redirect to main app when wallet is connected
+  useEffect(() => {
+    if (isConnected) {
+      router.push("/");
+    }
+  }, [isConnected, router]);
 
   const navItems = [
     {

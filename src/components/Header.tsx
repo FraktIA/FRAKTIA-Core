@@ -15,6 +15,7 @@ import React, { useRef, useEffect, useState } from "react";
 import { toggleAgentStatus } from "@/actions/agent";
 import Image from "next/image";
 import { AgentDetails } from "@/types/agent";
+import { useRouter } from "next/navigation";
 // Start/stop agent toggle state
 
 const Header = ({
@@ -36,7 +37,7 @@ const Header = ({
   const isEditingAgent = useAppSelector(selectIsEditingAgent);
   const editingAgentDetails = useAppSelector(selectEditingAgentDetails);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
+  const router = useRouter();
   // Start/stop agent toggle state
   const [isToggling, setIsToggling] = useState(false);
   const [agentStatus, setAgentStatus] = useState<
@@ -89,6 +90,7 @@ const Header = ({
       // Open the AppKit modal with disconnect option
       await disconnect();
       dispatch(setShowWalletDropdown(false));
+      router.push("/login");
     } catch (error) {
       console.error("Error during logout:", error);
       dispatch(setShowWalletDropdown(false));

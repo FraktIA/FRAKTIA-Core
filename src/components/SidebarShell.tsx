@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import SideBar from "@/components/SideBar";
 import { useAppKitAccount } from "@reown/appkit/react";
-import Login from "@/components/Login";
 import { addUserToDatabase } from "@/actions/user";
 import { useRouter } from "next/navigation";
 
@@ -35,7 +34,7 @@ export default function SidebarShell({
           console.error("Error during user registration:", error);
         }
       } else {
-        router.push("/"); // Redirect to login if not connected
+        router.push("/login"); // Redirect to login page if not connected
       }
     };
 
@@ -128,6 +127,7 @@ export default function SidebarShell({
       </div>
     );
   } else {
-    return <Login />;
+    // Don't render anything, let the redirect handle it
+    return <div>{children}</div>;
   }
 }

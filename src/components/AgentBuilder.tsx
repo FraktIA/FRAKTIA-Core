@@ -51,7 +51,7 @@ import Image from "next/image";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { selectNodesForAPI } from "@/redux/slices/selectedNodesSlice";
 import { deployAgentAction } from "@/actions/deploy";
-import { whitelist } from "@/constants/whitelist";
+// import { whitelist } from "@/constants/whitelist";
 import { useWindowSize } from "@/hooks/useWindowSize";
 import { useAgentBuilderSync } from "@/hooks/useNodesSync";
 import Modal from "@/components/Modal";
@@ -687,11 +687,11 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
       return;
     }
 
-    // Check if user's wallet address is in the whitelist
-    if (!address || !whitelist.includes(address)) {
-      dispatch(openModal("noAccess"));
-      return;
-    }
+    // // Check if user's wallet address is in the whitelist
+    // if (!address || !whitelist.includes(address)) {
+    //   dispatch(openModal("noAccess"));
+    //   return;
+    // }
 
     // Get character name
     const characterName = getCharacterName();
