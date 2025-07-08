@@ -1,13 +1,9 @@
 import React, { useState, useCallback, memo, useEffect } from "react";
-import { ChevronDown, ChevronUp, Brain, Settings, Key } from "lucide-react";
+import { Brain } from "lucide-react";
 // import { Checkmark } from "../Checkmark";
-import { ModelNodeData } from "@/types/nodeData";
-
-interface ModelConfigFormProps {
-  model: ModelNodeData;
-  handleInputChange: (field: string, value: string | number | boolean) => void;
-  onHighlightCharacter?: (nodeName: string) => void;
-}
+import { ModelConfigFormProps } from "@/types/configForms";
+import SectionHeader from "./SectionHeader";
+import FormSelect from "../form/FormSelect";
 
 const ModelConfigForm: React.FC<ModelConfigFormProps> = memo(
   ({ model, handleInputChange, onHighlightCharacter }) => {
@@ -19,8 +15,8 @@ const ModelConfigForm: React.FC<ModelConfigFormProps> = memo(
 
     // Validation function to check if the node should be marked as configured
     const isModelConfigured = useCallback(() => {
-      return !!(model.provider && model.model);
-    }, [model.provider, model.model]);
+      return true;
+    }, []);
 
     // Effect to update configured status whenever validation criteria changes
     useEffect(() => {
@@ -42,42 +38,6 @@ const ModelConfigForm: React.FC<ModelConfigFormProps> = memo(
         [section as keyof typeof prev]: !prev[section as keyof typeof prev],
       }));
     }, []);
-
-    const SectionHeader = useCallback(
-      ({
-        title,
-        icon: Icon,
-        section,
-      }: {
-        title: string;
-        icon: React.ComponentType<{ size?: number; className?: string }>;
-        section: string;
-      }) => (
-        <div
-          className="flex items-center justify-between cursor-pointer group"
-          onClick={() => toggleSection(section)}
-        >
-          <div className="flex items-center gap-2">
-            <Icon size={16} className="text-primary" />
-            <h3 className="text-sm font-semibold text-white tracking-wide">
-              {title}
-            </h3>
-          </div>
-          {expandedSections[section as keyof typeof expandedSections] ? (
-            <ChevronUp
-              size={16}
-              className="text-white/50 group-hover:text-white/70 transition-colors"
-            />
-          ) : (
-            <ChevronDown
-              size={16}
-              className="text-white/50 group-hover:text-white/70 transition-colors"
-            />
-          )}
-        </div>
-      ),
-      [expandedSections, toggleSection]
-    );
 
     const getModelOptions = () => {
       switch (model.provider) {
@@ -140,138 +100,121 @@ const ModelConfigForm: React.FC<ModelConfigFormProps> = memo(
 
     return (
       <div className="space-y-6 h-full p-6 relative">
-        {/* Status Indicator */}
-        {/* <div className="absolute top-4 right-4 flex items-center gap-2">
-          <Checkmark
-            className={`w-4 h-4 ${
-              isModelConfigured() ? "text-green-400" : "text-yellow-400"
-            } drop-shadow-lg`}
-          />
-          <span
-            className={`${
-              isModelConfigured() ? "text-green-400" : "text-yellow-400"
-            } text-[10px] font-bold capitalize`}
-          >
-            {isModelConfigured() ? "Ready" : "Setup Required"}
-          </span>
-        </div> */}
-
         {/* Model Selection */}
         <div className="space-y-4">
-          <SectionHeader title="Model Selection" icon={Brain} section="model" />
+          <SectionHeader
+            title="Model Selection"
+            icon={Brain}
+            section="model"
+            isExpanded={expandedSections.model}
+            onToggle={toggleSection}
+          />
 
           {expandedSections.model && (
             <div className="space-y-4 pl-6">
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                  Provider
-                </label>
-                <select
-                  value={model.provider}
-                  onChange={(e) => {
-                    const provider = e.target.value;
-                    handleInputChange("provider", provider);
+              <FormSelect
+                label="Provider"
+                value={model.provider}
+                onChange={(value) => {
+                  const provider = value;
+                  handleInputChange("provider", provider);
+                  handleInputChange("label", provider);
 
-                    // Highlight the corresponding model in NodesContent
-                    if (onHighlightCharacter) {
-                      const modelMap: Record<string, string> = {
-                        anthropic: "Claude",
-                        openai: "OpenAI",
-                        google: "Gemini",
-                        deepseek: "DeepSeek",
-                      };
-                      const modelName = modelMap[provider];
-                      if (modelName) {
-                        onHighlightCharacter(modelName);
-                      }
+                  // Highlight the corresponding model in NodesContent
+                  if (onHighlightCharacter) {
+                    const modelMap: Record<string, string> = {
+                      anthropic: "Claude",
+                      openai: "OpenAI",
+                      google: "Gemini",
+                      deepseek: "DeepSeek",
+                    };
+                    const modelName = modelMap[provider];
+                    if (modelName) {
+                      onHighlightCharacter(modelName);
                     }
-                  }}
-                  className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-sm transition-all duration-300"
-                >
-                  <option value="openai">OpenAI</option>
-                  <option value="anthropic">Anthropic</option>
-                  <option value="google">Google</option>
-                  <option value="meta">Meta</option>
-                  <option value="deepseek">DeepSeek</option>
-                  <option value="local">Local</option>
-                </select>
-              </div>
+                  }
+                }}
+                options={[
+                  { value: "openai", label: "OpenAI" },
+                  { value: "anthropic", label: "Anthropic" },
+                  // { value: "google", label: "Google" },
+                  // { value: "meta", label: "Meta" },
+                  // { value: "deepseek", label: "DeepSeek" },
+                  // { value: "local", label: "Local" },
+                ]}
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                  Model
-                </label>
-                <select
-                  value={model.model}
-                  onChange={(e) => handleInputChange("model", e.target.value)}
-                  className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-sm transition-all duration-300"
-                >
-                  <option value="">Select a model...</option>
-                  {getModelOptions().map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <FormSelect
+                label="Small Model"
+                value={model.model_small || ""}
+                onChange={(value) => handleInputChange("model_small", value)}
+                options={[
+                  { value: "", label: "Select a small model..." },
+                  ...getModelOptions().map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                  })),
+                ]}
+                placeholder="Select a small model..."
+              />
 
-              {model.provider === "local" && model.model === "custom" && (
-                <div>
-                  <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                    Custom Model Name
-                  </label>
-                  <input
-                    type="text"
-                    value={model.customModel || ""}
-                    onChange={(e) =>
-                      handleInputChange("customModel", e.target.value)
-                    }
-                    placeholder="Enter custom model name..."
-                    className="w-full p-3 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                  />
-                </div>
-              )}
+              <FormSelect
+                label="Large Model"
+                value={model.model_large || ""}
+                onChange={(value) => handleInputChange("model_large", value)}
+                options={[
+                  { value: "", label: "Select a large model..." },
+                  ...getModelOptions().map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                  })),
+                ]}
+                placeholder="Select a large model..."
+              />
             </div>
           )}
         </div>
 
         {/* Authentication */}
-        <div className="space-y-4">
-          <SectionHeader title="Authentication" icon={Key} section="auth" />
+        {/* <div className="space-y-4">
+          <SectionHeader
+            title="Authentication"
+            icon={Key}
+            section="auth"
+            isExpanded={expandedSections.auth}
+            onToggle={toggleSection}
+          />
 
           {expandedSections.auth && (
             <div className="space-y-4 pl-6">
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                  API Key
-                  <span className="text-primary ml-1">*</span>
-                </label>
-                <input
-                  type="password"
-                  value={String(model.apiKey || "")}
-                  onChange={(e) => handleInputChange("apiKey", e.target.value)}
-                  placeholder={
-                    model.provider === "openai"
-                      ? "sk-..."
-                      : model.provider === "anthropic"
-                      ? "sk-ant-..."
-                      : model.provider === "google"
-                      ? "AI..."
-                      : "Enter API key..."
-                  }
-                  className="w-full p-3 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                />
-              </div>
+              <FormInput
+                label="API Key"
+                value={String(model.apiKey || "")}
+                onChange={(value) => handleInputChange("apiKey", value)}
+                type="password"
+                placeholder={
+                  model.provider === "openai"
+                    ? "sk-..."
+                    : model.provider === "anthropic"
+                    ? "sk-ant-..."
+                    : model.provider === "google"
+                    ? "AI..."
+                    : "Enter API key..."
+                }
+                required
+              />
             </div>
           )}
-        </div>
+        </div>*/}
 
         {/* Model Settings */}
-        <div className="space-y-4">
+        {/* <div className="space-y-4">
           <SectionHeader
             title="Model Settings"
             icon={Settings}
             section="settings"
+            isExpanded={expandedSections.settings}
+            onToggle={toggleSection}
           />
 
           {expandedSections.settings && (
@@ -299,7 +242,7 @@ const ModelConfigForm: React.FC<ModelConfigFormProps> = memo(
               </div>
             </div>
           )}
-        </div>
+        </div> */}
       </div>
     );
   }

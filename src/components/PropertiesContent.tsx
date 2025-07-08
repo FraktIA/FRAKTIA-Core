@@ -5,8 +5,6 @@ import FrameworkConfigForm from "@/components/config/FrameworkConfigForm";
 import VoiceConfigForm from "@/components/config/VoiceConfigForm";
 import ModelConfigForm from "@/components/config/ModelConfigForm";
 import PluginConfigForm from "@/components/config/PluginConfigForm";
-import LogicConfigForm from "@/components/config/LogicConfigForm";
-import OutputConfigForm from "@/components/config/OutputConfigForm";
 import CharacterConfigForm from "@/components/config/CharacterConfigForm";
 import { Node } from "@xyflow/react";
 import {
@@ -15,8 +13,6 @@ import {
   ModelNodeData,
   VoiceNodeData,
   PluginNodeData,
-  LogicNodeData,
-  OutputNodeData,
   NodeData,
 } from "@/types/nodeData";
 
@@ -59,9 +55,9 @@ export function PropertiesContent({
           [field]: value,
         };
 
-        // Schedule parent update after the current render cycle
+        // Schedule parent update with only the changed field after the current render cycle
         setTimeout(() => {
-          onUpdateNode(node.id, updatedData);
+          onUpdateNode(node.id, { [field]: value });
         }, 0);
 
         return updatedData;
@@ -194,20 +190,6 @@ export function PropertiesContent({
             handleInputChange={handleInputChange}
           />
         );
-      case "logic":
-        return (
-          <LogicConfigForm
-            localNodeData={localNodeData as LogicNodeData}
-            handleInputChange={handleInputChange}
-          />
-        );
-      case "output":
-        return (
-          <OutputConfigForm
-            localNodeData={localNodeData as OutputNodeData}
-            handleInputChange={handleInputChange}
-          />
-        );
 
       default:
         return (
@@ -221,20 +203,9 @@ export function PropertiesContent({
   return (
     <div className="h-full flex flex-col">
       {/* Content */}
-      <section className="flex-1  overflow-y-auto  bg-dark">
+      <section className="flex-1  overflow-y-auto scrollbar-hide bg-dark">
         <div className="max-w-full  h-full mx-auto">{renderConfigForm()}</div>
       </section>
-
-      {/* Actions */}
-      {/* <footer className="px-4 py-4 bg-dark border-t border-dark/60 space-y-3 flex flex-col md:px-6">
-        <button
-          onClick={() => onDeleteNode(node.id)}
-          className="w-full p-3 bg-red-600 hover:bg-red-700 rounded-lg text-white text-sm font-bold transition-all flex items-center justify-center space-x-2 border border-red-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400 shadow-sm"
-        >
-          <Trash2 className="w-4 h-4" />
-          <span>DELETE NODE</span>
-        </button>
-      </footer> */}
     </div>
   );
 }

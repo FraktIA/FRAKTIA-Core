@@ -4,6 +4,7 @@ import {
   forwardRef,
   useImperativeHandle,
   useEffect,
+  useRef,
 } from "react";
 import {
   nextStep,
@@ -42,8 +43,6 @@ import { FrameworkNode } from "./nodes/FrameworkNode";
 import { ModelNode } from "./nodes/ModelNode";
 import { VoiceNode } from "./nodes/VoiceNode";
 import { PluginNode } from "./nodes/PluginNode";
-import { LogicNode } from "./nodes/LogicNode";
-import { OutputNode } from "./nodes/OutputNode";
 import { CharacterNode } from "./nodes/CharacterNode";
 import { characterConfigs } from "@/constants/characters";
 import { CharacterConfig } from "@/types/nodes";
@@ -64,8 +63,6 @@ const nodeTypes = {
   model: ModelNode,
   voice: VoiceNode,
   plugin: PluginNode,
-  logic: LogicNode,
-  output: OutputNode,
 };
 
 // Helper function to get node type from node name
@@ -108,21 +105,11 @@ const getNodeType = (nodeName: string): string => {
 
     // Plugin nodes
     Twitter: "plugin",
+    Discord: "plugin",
     "Database Connector": "plugin",
     "API Gateway": "plugin",
     "Analytics Dashboard": "plugin",
-
-    // Logic nodes
-    "If/Then": "logic",
-    "Switch/Case": "logic",
-    Loop: "logic",
-    Filter: "logic",
-    Transform: "logic",
-
-    // Output nodes
-    "Chat Output": "output",
-    "API Output": "output",
-    "File Output": "output",
+    Plugins: "plugin", // Add the generic "Plugins" mapping
   };
 
   return nodeTypeMap[nodeName] || "framework";
@@ -148,7 +135,7 @@ const defaultNodeForStep: { [key: string]: string } = {
   Voice: "Piper",
 
   Character: "AI Assistant",
-  Plugins: "Twitter",
+  Plugins: "Plugins",
 };
 
 // Helper function to get default node data
@@ -253,45 +240,8 @@ const getDefaultNodeData = (nodeType: string, nodeName: string) => {
     case "plugin":
       return {
         ...baseData,
-        service: nodeName,
-        endpoint: "",
-        // Twitter plugin defaults
-        twitterDryRun: false,
-        twitterTargetUsers: "",
-        twitterRetryLimit: 5,
-        twitterPollInterval: 120,
-        twitterPostEnable: false,
-        twitterPostIntervalMin: 90,
-        twitterPostIntervalMax: 180,
-        twitterPostImmediately: false,
-        twitterPostIntervalVariance: 0.2,
-        twitterSearchEnable: true,
-        twitterInteractionIntervalMin: 15,
-        twitterInteractionIntervalMax: 30,
-        twitterInteractionIntervalVariance: 0.3,
-        twitterAutoRespondMentions: true,
-        twitterAutoRespondReplies: true,
-        twitterMaxInteractionsPerRun: 10,
-        twitterTimelineAlgorithm: "weighted",
-        twitterTimelineUserBasedWeight: 3,
-        twitterTimelineTimeBasedWeight: 2,
-        twitterTimelineRelevanceWeight: 5,
-        twitterMaxTweetLength: 4000,
-        twitterDmOnly: false,
-        twitterEnableActionProcessing: false,
-        twitterActionInterval: 240,
-      };
-    case "logic":
-      return {
-        ...baseData,
-        condition: "if",
-        expression: "",
-      };
-    case "output":
-      return {
-        ...baseData,
-        type: "chat",
-        template: "",
+        plugins: [], // Start with empty array for multi-plugin support
+        configured: false, // Not configured until plugins are added
       };
     default:
       return baseData;
@@ -317,6 +267,12 @@ export interface AgentBuilderRef {
   onDeleteNode: (nodeId: string) => void;
   clearSelectedNode: () => void;
   selectNodeByName: (nodeName: string) => void; // Add method to select node by name
+  setUpdateCallbacks: (
+    callbacks: {
+      onNodesChange: () => void;
+      onSelectionChange: () => void;
+    } | null
+  ) => void; // Add callback registration method
   getAPIData: () => {
     allNodes: Array<{
       type?: string;
@@ -361,6 +317,15 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+
+  // Monitor changes and trigger callbacks
+  useEffect(() => {
+    updateCallbacksRef.current?.onNodesChange();
+  }, [nodes, edges]);
+
+  useEffect(() => {
+    updateCallbacksRef.current?.onSelectionChange();
+  }, [selectedNode]);
   const [isDeploying, setIsDeploying] = useState(false);
   const [deploymentMessage, setDeploymentMessage] = useState<string | null>(
     null
@@ -370,6 +335,12 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
   const apiNodesData = useAppSelector(selectNodesForAPI);
   const activeModal = useAppSelector(selectActiveModal);
   const isEditingAgent = useAppSelector(selectIsEditingAgent);
+
+  // Callback refs for parent component updates
+  const updateCallbacksRef = useRef<{
+    onNodesChange: () => void;
+    onSelectionChange: () => void;
+  } | null>(null);
 
   // Add debug logging
   useEffect(() => {
@@ -731,6 +702,11 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
         console.log(`Node ${index} (${node.type}):`, node.data);
       });
 
+      // // console.log("All nodes data:", apiNodesData.allNodes);
+      // setIsDeploying(false);
+      // dispatch(closeModal());
+      // return;
+
       const result = await deployAgentAction(
         address as string,
         apiNodesData.allNodes,
@@ -833,8 +809,6 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
         voice: "Voice",
         character: "Character",
         plugin: "Plugins",
-        logic: "Plugins",
-        output: "Plugins",
       };
 
       // Always update the nodes panel category to show the clicked node's category
@@ -868,8 +842,6 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
           voice: 2, // Voice
           character: 3, // Character
           plugin: 4, // Plugins
-          logic: 4, // Use plugins position for logic nodes
-          output: 4, // Use plugins position for output nodes
         };
 
         const stepIndex = nodeTypeToStepIndex[nodeType];
@@ -947,6 +919,19 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
     [setNodes, setEdges, getPositionsByStep]
   );
 
+  // Callback setter method
+  const setUpdateCallbacks = useCallback(
+    (
+      callbacks: {
+        onNodesChange: () => void;
+        onSelectionChange: () => void;
+      } | null
+    ) => {
+      updateCallbacksRef.current = callbacks;
+    },
+    []
+  );
+
   // Expose functions to parent component
   useImperativeHandle(ref, () => ({
     onAddNode,
@@ -958,6 +943,7 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
     onDeleteNode,
     clearSelectedNode: () => setSelectedNode(null),
     selectNodeByName, // Add the new method
+    setUpdateCallbacks, // Add callback setter
     getAPIData: prepareForAPISubmission, // Expose API data preparation
   }));
 
@@ -1011,7 +997,17 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
 
   const selectNodeByName = useCallback(
     (nodeName: string) => {
+      console.log(`selectNodeByName called with: ${nodeName}`);
+      console.log(
+        "Available nodes:",
+        nodes.map((n) => ({ id: n.id, label: n.data?.label, type: n.type }))
+      );
       const targetNode = nodes.find((node) => node.data?.label === nodeName);
+      console.log(
+        "Found target node:",
+        targetNode?.id,
+        targetNode?.data?.label
+      );
       if (targetNode) {
         // Update nodes to reflect selection state
         setNodes((nds) =>
@@ -1024,6 +1020,8 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
 
         // Sync selection to Redux immediately
         syncSelectionChange({ nodes: [targetNode] });
+      } else {
+        console.log(`No node found with label: ${nodeName}`);
       }
     },
     [nodes, setNodes, syncSelectionChange]
@@ -1232,6 +1230,7 @@ const AgentBuilderFlow = forwardRef<AgentBuilderRef>((props, ref) => {
     selectedNode,
     isEditingAgent,
   ]);
+  // console.log("hello agent builder");
 
   return (
     <div className=" w-full flex  flex-col  bg-bg lg:px-5 pt-5 rounded-tl-[20px] relative h-full">

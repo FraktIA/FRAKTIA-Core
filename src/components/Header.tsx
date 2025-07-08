@@ -48,16 +48,6 @@ const Header = ({
     setAgentStatus(agentDetails?.status);
   }, [agentDetails]);
 
-  // Debug logging
-  useEffect(() => {
-    console.log(
-      "Header - isEditingAgent:",
-      isEditingAgent,
-      "editingAgentDetails:",
-      editingAgentDetails
-    );
-  }, [isEditingAgent, editingAgentDetails]);
-
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -73,7 +63,8 @@ const Header = ({
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [dispatch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleWalletClick = () => {
     if (!isConnected) {
@@ -110,7 +101,7 @@ const Header = ({
     setIsToggling(false);
   };
 
-  console.log(agentDetails);
+  // console.log(agentDetails);
 
   return (
     <div

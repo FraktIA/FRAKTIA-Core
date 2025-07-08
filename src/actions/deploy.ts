@@ -3,7 +3,7 @@
 import clientPromise from "@/lib/mongodb";
 import { apiClient } from "@/lib/api";
 import { APINode } from "@/redux/slices/selectedNodesSlice";
-import { CharacterNodeData } from "@/types/nodeData";
+import { CharacterNodeData, IndividualPluginConfig } from "@/types/nodeData";
 
 export interface AgentData {
   id?: string;
@@ -97,6 +97,14 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
   // Build plugins array
   const plugins: string[] = [];
 
+  // Build settings
+  const settings: ElizaSettings = {
+    secrets: {},
+    voice: {},
+  };
+
+  plugins.push("@elizaos/plugin-sql");
+
   // Add model plugin based on provider
   if (modelNode?.data?.provider === "anthropic") {
     plugins.push("@elizaos-plugins/plugin-anthropic");
@@ -106,164 +114,197 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
   // }
 
   // Add other plugins based on plugin nodes
-  // pluginNodes.forEach((plugin) => {
-  //   if (plugin.data?.service === "Twitter") {
-  //     plugins.push("@elizaos/plugin-twitter");
-  //   }
-  // });
+  pluginNodes.forEach((pluginNode) => {
+    // Handle new multi-plugin structure
+    if (pluginNode.data?.plugins && Array.isArray(pluginNode.data.plugins)) {
+      pluginNode.data.plugins.forEach((plugin: IndividualPluginConfig) => {
+        if (plugin.service === "twitter") {
+          plugins.push("@elizaos/plugin-twitter");
+
+          // API credentials from form
+          if (plugin?.twitterApiKey) {
+            settings.secrets.TWITTER_API_KEY = String(plugin.twitterApiKey);
+          }
+          if (plugin?.twitterApiSecretKey) {
+            settings.secrets.TWITTER_API_SECRET_KEY = String(
+              plugin.twitterApiSecretKey
+            );
+          }
+          if (plugin?.twitterAccessToken) {
+            settings.secrets.TWITTER_ACCESS_TOKEN = String(
+              plugin.twitterAccessToken
+            );
+          }
+          if (plugin?.twitterAccessTokenSecret) {
+            settings.secrets.TWITTER_ACCESS_TOKEN_SECRET = String(
+              plugin.twitterAccessTokenSecret
+            );
+          }
+
+          // Configuration options
+          settings.secrets.TWITTER_DRY_RUN = String(
+            plugin?.twitterDryRun || false
+          );
+          settings.secrets.TWITTER_TARGET_USERS = String(
+            plugin?.twitterTargetUsers || ""
+          );
+          settings.secrets.TWITTER_RETRY_LIMIT = String(
+            plugin?.twitterRetryLimit || 5
+          );
+          settings.secrets.TWITTER_POLL_INTERVAL = String(
+            plugin?.twitterPollInterval || 120
+          );
+          settings.secrets.TWITTER_POST_ENABLE = String(
+            plugin?.twitterPostEnable || true
+          );
+          settings.secrets.TWITTER_POST_INTERVAL_MIN = String(
+            plugin?.twitterPostIntervalMin || 30
+          );
+          settings.secrets.TWITTER_POST_INTERVAL_MAX = String(
+            plugin?.twitterPostIntervalMax || 180
+          );
+          settings.secrets.TWITTER_POST_IMMEDIATELY = String(
+            plugin?.twitterPostImmediately || true
+          );
+          settings.secrets.TWITTER_POST_INTERVAL_VARIANCE = String(
+            plugin?.twitterPostIntervalVariance || 0.2
+          );
+          settings.secrets.TWITTER_SEARCH_ENABLE = String(
+            plugin?.twitterSearchEnable || false
+          );
+          settings.secrets.TWITTER_INTERACTION_INTERVAL_MIN = String(
+            plugin?.twitterInteractionIntervalMin || 15
+          );
+          settings.secrets.TWITTER_INTERACTION_INTERVAL_MAX = String(
+            plugin?.twitterInteractionIntervalMax || 30
+          );
+          settings.secrets.TWITTER_INTERACTION_INTERVAL_VARIANCE = String(
+            plugin?.twitterInteractionIntervalVariance || 0.3
+          );
+          settings.secrets.TWITTER_AUTO_RESPOND_MENTIONS = String(
+            plugin?.twitterAutoRespondMentions || false
+          );
+          settings.secrets.TWITTER_AUTO_RESPOND_REPLIES = String(
+            plugin?.twitterAutoRespondReplies || false
+          );
+          settings.secrets.TWITTER_MAX_INTERACTIONS_PER_RUN = String(
+            plugin?.twitterMaxInteractionsPerRun || 10
+          );
+          settings.secrets.TWITTER_TIMELINE_ALGORITHM = String(
+            plugin?.twitterTimelineAlgorithm || "weighted"
+          );
+          settings.secrets.TWITTER_TIMELINE_USER_BASED_WEIGHT = String(
+            plugin?.twitterTimelineUserBasedWeight || 3
+          );
+          settings.secrets.TWITTER_TIMELINE_TIME_BASED_WEIGHT = String(
+            plugin?.twitterTimelineTimeBasedWeight || 2
+          );
+          settings.secrets.TWITTER_TIMELINE_RELEVANCE_WEIGHT = String(
+            plugin?.twitterTimelineRelevanceWeight || 5
+          );
+          settings.secrets.TWITTER_MAX_TWEET_LENGTH = String(
+            plugin?.twitterMaxTweetLength || 4000
+          );
+          settings.secrets.TWITTER_DM_ONLY = String(
+            plugin?.twitterDmOnly || false
+          );
+          settings.secrets.TWITTER_ENABLE_ACTION_PROCESSING = String(
+            plugin?.twitterEnableActionProcessing || false
+          );
+          settings.secrets.TWITTER_ACTION_INTERVAL = String(
+            plugin?.twitterActionInterval || 240
+          );
+        }
+        if (plugin.service === "discord") {
+          plugins.push("@elizaos/plugin-discord");
+          if (plugin?.discordApplicationId) {
+            settings.secrets.DISCORD_APPLICATION_ID = String(
+              plugin.discordApplicationId
+            );
+          }
+          if (plugin?.discordApiToken) {
+            settings.secrets.DISCORD_API_TOKEN = String(plugin.discordApiToken);
+          }
+          // Configuration options
+          settings.secrets.DISCORD_DRY_RUN = String(
+            plugin?.discordDryRun || false
+          );
+          settings.secrets.DISCORD_TARGET_CHANNELS = String(
+            plugin?.discordTargetChannels || ""
+          );
+          settings.secrets.DISCORD_RESPONSE_CHANNELS = String(
+            plugin?.discordResponseChannels || ""
+          );
+          settings.secrets.DISCORD_RETRY_LIMIT = String(
+            plugin?.discordRetryLimit || 5
+          );
+          settings.secrets.DISCORD_POLL_INTERVAL = String(
+            plugin?.discordPollInterval || 60
+          );
+          settings.secrets.DISCORD_AUTO_RESPONSE = String(
+            plugin?.discordAutoResponse || true
+          );
+          settings.secrets.DISCORD_MAX_MESSAGE_LENGTH = String(
+            plugin?.discordMaxMessageLength || 2000
+          );
+          settings.secrets.DISCORD_ENABLE_VOICE_CHANNELS = String(
+            plugin?.discordEnableVoiceChannels || false
+          );
+          settings.secrets.DISCORD_MODERATE_CONTENT = String(
+            plugin?.discordModerateContent || false
+          );
+          settings.secrets.DISCORD_ALLOWED_ROLES = String(
+            plugin?.discordAllowedRoles || ""
+          );
+          settings.secrets.DISCORD_BANNED_USERS = String(
+            plugin?.discordBannedUsers || ""
+          );
+          settings.secrets.DISCORD_MESSAGE_INTERVAL_MIN = String(
+            plugin?.discordMessageIntervalMin || 30
+          );
+          settings.secrets.DISCORD_MESSAGE_INTERVAL_MAX = String(
+            plugin?.discordMessageIntervalMax || 120
+          );
+        }
+      });
+    }
+  });
 
   // Default plugins
   plugins.push("@elizaos/plugin-bootstrap");
-
-  // Build settings
-  const settings: ElizaSettings = {
-    secrets: {},
-    voice: {},
-  };
 
   // Add API keys if available
   if (modelNode?.data?.provider === "anthropic") {
     settings.secrets.ANTHROPIC_API_KEY = modelNode?.data?.apiKey
       ? String(modelNode.data.apiKey)
       : (process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY as string);
-    settings.secrets.ANTHROPIC_SMALL_MODEL = modelNode?.data?.model
-      ? String(modelNode.data.model)
-      : (process.env.NEXT_PUBLIC_ANTHROPIC_MODEL as string);
+
+    // Use separate small and large model fields
+    settings.secrets.ANTHROPIC_SMALL_MODEL = modelNode?.data?.model_small
+      ? String(modelNode.data.model_small)
+      : "claude-3-5-haiku-latest";
+    settings.secrets.ANTHROPIC_LARGE_MODEL = modelNode?.data?.model_large
+      ? String(modelNode.data.model_large)
+      : "claude-3-5-sonnet-latest";
   } else if (modelNode?.data.provider === "openai") {
-    settings.secrets.OPENAI_MODEL = modelNode?.data?.model
-      ? String(modelNode.data.model)
-      : (process.env.NEXT_PUBLIC_OPENAI_MODEL as string);
-  } else if (modelNode?.data?.provider === "deepseek") {
-    settings.secrets.DEEPSEEK_API_KEY = modelNode?.data?.apiKey
+    settings.secrets.OPENAI_API_KEY = modelNode?.data?.apiKey
       ? String(modelNode.data.apiKey)
-      : (process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY as string);
-    settings.secrets.DEEPSEEK_MODEL = modelNode?.data?.model
-      ? String(modelNode.data.model)
-      : (process.env.NEXT_PUBLIC_DEEPSEEK_MODEL as string);
+      : (process.env.NEXT_PUBLIC_OPENAI_API_KEY as string);
+
+    // Use separate small and large model fields
+    settings.secrets.OPENAI_SMALL_MODEL = modelNode?.data?.model_small
+      ? String(modelNode.data.model_small)
+      : "gpt-4o-mini";
+    settings.secrets.OPENAI_LARGE_MODEL = modelNode?.data?.model_large
+      ? String(modelNode.data.model_large)
+      : "gpt-4o";
+    settings.secrets.USE_OPENAI_EMBEDDING = "true";
   }
   settings.secrets.OPENAI_API_KEY = modelNode?.data?.apiKey
     ? String(modelNode.data.apiKey)
     : (process.env.NEXT_PUBLIC_OPENAI_API_KEY as string);
   settings.secrets.USE_OPENAI_EMBEDDING = "true";
   // }
-
-  // Add Twitter credentials if Twitter plugin is configured
-  const twitterPlugin = pluginNodes.find(
-    (plugin) => plugin.data?.service === "Twitter"
-  );
-  if (twitterPlugin) {
-    // Use form data first, fallback to environment variables
-    settings.secrets.TWITTER_USERNAME = String(
-      twitterPlugin.data?.twitterUsername || process.env.TWITTER_USERNAME || ""
-    );
-    settings.secrets.TWITTER_PASSWORD = String(
-      twitterPlugin.data?.twitterPassword || process.env.TWITTER_PASSWORD || ""
-    );
-    settings.secrets.TWITTER_EMAIL = String(
-      twitterPlugin.data?.twitterEmail || process.env.TWITTER_EMAIL || ""
-    );
-    settings.secrets.TWITTER_2FA_SECRET = String(
-      twitterPlugin.data?.twitter2faSecret ||
-        process.env.TWITTER_2FA_SECRET ||
-        ""
-    );
-
-    // API credentials from form
-    if (twitterPlugin.data?.twitterApiKey) {
-      settings.secrets.TWITTER_API_KEY = String(
-        twitterPlugin.data.twitterApiKey
-      );
-    }
-    if (twitterPlugin.data?.twitterApiSecretKey) {
-      settings.secrets.TWITTER_API_SECRET_KEY = String(
-        twitterPlugin.data.twitterApiSecretKey
-      );
-    }
-    if (twitterPlugin.data?.twitterAccessToken) {
-      settings.secrets.TWITTER_ACCESS_TOKEN = String(
-        twitterPlugin.data.twitterAccessToken
-      );
-    }
-    if (twitterPlugin.data?.twitterAccessTokenSecret) {
-      settings.secrets.TWITTER_ACCESS_TOKEN_SECRET = String(
-        twitterPlugin.data.twitterAccessTokenSecret
-      );
-    }
-
-    // Configuration options
-    settings.secrets.TWITTER_DRY_RUN = String(
-      twitterPlugin.data?.twitterDryRun || false
-    );
-    settings.secrets.TWITTER_TARGET_USERS = String(
-      twitterPlugin.data?.twitterTargetUsers || ""
-    );
-    settings.secrets.TWITTER_RETRY_LIMIT = String(
-      twitterPlugin.data?.twitterRetryLimit || 5
-    );
-    settings.secrets.TWITTER_POLL_INTERVAL = String(
-      twitterPlugin.data?.twitterPollInterval || 120
-    );
-    settings.secrets.TWITTER_POST_ENABLE = String(
-      twitterPlugin.data?.twitterPostEnable || true
-    );
-    settings.secrets.TWITTER_POST_INTERVAL_MIN = String(
-      twitterPlugin.data?.twitterPostIntervalMin || 30
-    );
-    settings.secrets.TWITTER_POST_INTERVAL_MAX = String(
-      twitterPlugin.data?.twitterPostIntervalMax || 180
-    );
-    settings.secrets.TWITTER_POST_IMMEDIATELY = String(
-      twitterPlugin.data?.twitterPostImmediately || false
-    );
-    settings.secrets.TWITTER_POST_INTERVAL_VARIANCE = String(
-      twitterPlugin.data?.twitterPostIntervalVariance || 0.2
-    );
-    settings.secrets.TWITTER_SEARCH_ENABLE = String(
-      twitterPlugin.data?.twitterSearchEnable || true
-    );
-    settings.secrets.TWITTER_INTERACTION_INTERVAL_MIN = String(
-      twitterPlugin.data?.twitterInteractionIntervalMin || 15
-    );
-    settings.secrets.TWITTER_INTERACTION_INTERVAL_MAX = String(
-      twitterPlugin.data?.twitterInteractionIntervalMax || 30
-    );
-    settings.secrets.TWITTER_INTERACTION_INTERVAL_VARIANCE = String(
-      twitterPlugin.data?.twitterInteractionIntervalVariance || 0.3
-    );
-    settings.secrets.TWITTER_AUTO_RESPOND_MENTIONS = String(
-      twitterPlugin.data?.twitterAutoRespondMentions || true
-    );
-    settings.secrets.TWITTER_AUTO_RESPOND_REPLIES = String(
-      twitterPlugin.data?.twitterAutoRespondReplies || true
-    );
-    settings.secrets.TWITTER_MAX_INTERACTIONS_PER_RUN = String(
-      twitterPlugin.data?.twitterMaxInteractionsPerRun || 10
-    );
-    settings.secrets.TWITTER_TIMELINE_ALGORITHM = String(
-      twitterPlugin.data?.twitterTimelineAlgorithm || "weighted"
-    );
-    settings.secrets.TWITTER_TIMELINE_USER_BASED_WEIGHT = String(
-      twitterPlugin.data?.twitterTimelineUserBasedWeight || 3
-    );
-    settings.secrets.TWITTER_TIMELINE_TIME_BASED_WEIGHT = String(
-      twitterPlugin.data?.twitterTimelineTimeBasedWeight || 2
-    );
-    settings.secrets.TWITTER_TIMELINE_RELEVANCE_WEIGHT = String(
-      twitterPlugin.data?.twitterTimelineRelevanceWeight || 5
-    );
-    settings.secrets.TWITTER_MAX_TWEET_LENGTH = String(
-      twitterPlugin.data?.twitterMaxTweetLength || 4000
-    );
-    settings.secrets.TWITTER_DM_ONLY = String(
-      twitterPlugin.data?.twitterDmOnly || false
-    );
-    settings.secrets.TWITTER_ENABLE_ACTION_PROCESSING = String(
-      twitterPlugin.data?.twitterEnableActionProcessing || false
-    );
-    settings.secrets.TWITTER_ACTION_INTERVAL = String(
-      twitterPlugin.data?.twitterActionInterval || 240
-    );
-  }
 
   // Add voice settings
   if (voiceNode?.data) {
@@ -276,13 +317,13 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
 
   // Create system prompt
   const system = String(
-    characterData?.customPersonality ||
+    characterData?.system ||
       `You are ${characterName}, a helpful AI assistant focused on providing accurate and thoughtful responses.`
   );
 
   // Use bio or create default
-  const bio = Array.isArray(characterData?.customBio)
-    ? characterData.customBio
+  const bio = Array.isArray(characterData?.bio)
+    ? characterData.bio
     : [
         "A sophisticated AI assistant designed to help users with various tasks",
         "Specializes in problem-solving and information synthesis",
@@ -290,78 +331,63 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
       ];
 
   // Create sample message examples
-  const messageExamples: MessageExample[][] = [
-    [
-      {
-        name: "{{name1}}",
-        content: {
-          text: "hello there",
-        },
-      },
-      {
-        name: characterName,
-        content: {
-          text: "hello! how can i help you today?",
-        },
-      },
-    ],
-    [
-      {
-        name: "{{name1}}",
-        content: {
-          text: "what are you good at?",
-        },
-      },
-      {
-        name: characterName,
-        content: {
-          text: "i'm designed to help with various tasks including problem-solving, analysis, and providing information. what would you like assistance with?",
-        },
-      },
-    ],
-  ];
+  const messageExamples: MessageExample[][] = Array.isArray(
+    characterData?.messageExamples
+  )
+    ? characterData.messageExamples
+    : [
+        [
+          {
+            name: "{{name1}}",
+            content: {
+              text: "hello there",
+            },
+          },
+          {
+            name: characterName,
+            content: {
+              text: "hello! how can i help you today?",
+            },
+          },
+        ],
+        [
+          {
+            name: "{{name1}}",
+            content: {
+              text: "what are you good at?",
+            },
+          },
+          {
+            name: characterName,
+            content: {
+              text: "i'm designed to help with various tasks including problem-solving, analysis, and providing information. what would you like assistance with?",
+            },
+          },
+        ],
+      ];
 
   // Create post examples
-  const postExamples = [
-    "focus on solving problems step by step rather than rushing to conclusions",
-    "the best solutions often come from understanding the real problem first",
-    "accuracy and reliability matter more than speed when helping others",
-    "every challenge is an opportunity to learn something new",
-    "clear communication can solve most misunderstandings",
-  ];
+  const postExamples = Array.isArray(characterData?.postExamples)
+    ? characterData.postExamples
+    : [
+        "focus on solving problems step by step rather than rushing to conclusions",
+        "the best solutions often come from understanding the real problem first",
+        "accuracy and reliability matter more than speed when helping others",
+        "every challenge is an opportunity to learn something new",
+        "clear communication can solve most misunderstandings",
+      ];
 
   // Use custom adjectives or defaults
-  const adjectives = Array.isArray(characterData?.customAdjectives)
-    ? characterData.customAdjectives
+  const adjectives = Array.isArray(characterData?.adjectives)
+    ? characterData.adjectives
     : ["helpful", "analytical", "precise", "reliable", "knowledgeable"];
 
   // Use custom topics or defaults
-  const topics = Array.isArray(characterData?.customTopics)
-    ? characterData.customTopics
+  const topics = Array.isArray(characterData?.topics)
+    ? characterData.topics
     : ["technology", "science", "problem-solving", "learning", "innovation"];
 
   // Create style configuration
-  const style = {
-    all: [
-      "be helpful and accurate",
-      "provide clear and concise responses",
-      "focus on being genuinely useful",
-      "maintain a friendly and professional tone",
-      "be empathetic and understanding",
-    ],
-    chat: [
-      "be direct and helpful",
-      "provide actionable information",
-      "ask clarifying questions when needed",
-      "focus on solving the user's problem",
-    ],
-    post: [
-      "share useful insights and knowledge",
-      "focus on practical advice",
-      "be informative without being overwhelming",
-      "help people learn and grow",
-    ],
-  };
 
   const formattedResult = {
     name: characterName,
@@ -373,8 +399,8 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
     postExamples,
     adjectives,
     topics,
-    style,
-  };
+    style: characterData?.style || {},
+  } as ElizaCharacter;
 
   return formattedResult;
 }
@@ -403,6 +429,8 @@ export async function deployAgentAction(
       data: node.data,
     }));
 
+    // console.log(JSON.stringify(nodes, null, 2), "nodes");
+
     const client = await clientPromise;
     const db = client.db("Fraktia");
     const collection = db.collection<UserDocument>("users");
@@ -428,6 +456,7 @@ export async function deployAgentAction(
     // Transform to Eliza format for API deployment
     const formattedResult = transformToElizaFormat(agentData);
     console.log(JSON.stringify(formattedResult, null, 2), "formattedResult");
+    // return { success: true, agentId: formattedResult.name };
 
     let elizaAgentId: string;
 

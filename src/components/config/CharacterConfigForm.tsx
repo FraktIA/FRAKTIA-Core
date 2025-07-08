@@ -2,8 +2,6 @@ import React, { useState, useCallback, useEffect } from "react";
 import {
   X,
   XCircle,
-  ChevronDown,
-  ChevronUp,
   User,
   MessageSquare,
   FileText,
@@ -12,26 +10,11 @@ import {
 } from "lucide-react";
 // import { Checkmark } from "../Checkmark";
 import characterConfigs from "@/constants/characters";
-import {
-  MessageExample,
-  ConversationExample,
-  CharacterNodeData,
-} from "@/types/nodeData";
-
-interface CharacterConfigFormProps {
-  character: CharacterNodeData;
-  handleInputChange: (
-    field: string,
-    value: string | number | boolean | object
-  ) => void;
-  handleArrayInputChange: (field: string, value: string, index: number) => void;
-  addArrayItem: (field: string) => void;
-  removeArrayItem: (field: string, index: number) => void;
-  onUpdateNode: (nodeId: string, data: Record<string, unknown>) => void;
-  nodeId: string;
-  setLocalNodeData: (data: Record<string, unknown>) => void;
-  onHighlightCharacter?: (nodeName: string) => void;
-}
+import { MessageExample, ConversationExample } from "@/types/nodeData";
+import { CharacterConfigFormProps } from "@/types/configForms";
+import SectionHeader from "./SectionHeader";
+import FormInput from "../form/FormInput";
+import FormSelect from "../form/FormSelect";
 
 const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
   character,
@@ -83,49 +66,6 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
       [section as keyof typeof prev]: !prev[section as keyof typeof prev],
     }));
   }, []);
-
-  const SectionHeader = useCallback(
-    ({
-      title,
-      icon: Icon,
-      section,
-      count,
-    }: {
-      title: string;
-      icon: React.ComponentType<{ size?: number; className?: string }>;
-      section: string;
-      count?: number;
-    }) => (
-      <div
-        className="flex items-center justify-between cursor-pointer group"
-        onClick={() => toggleSection(section)}
-      >
-        <div className="flex items-center gap-2">
-          <Icon size={16} className="text-primary" />
-          <h3 className="text-sm font-semibold text-white tracking-wide">
-            {title}
-          </h3>
-          {count !== undefined && (
-            <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full">
-              {count}
-            </span>
-          )}
-        </div>
-        {expandedSections[section as keyof typeof expandedSections] ? (
-          <ChevronUp
-            size={16}
-            className="text-white/50 group-hover:text-white/70 transition-colors"
-          />
-        ) : (
-          <ChevronDown
-            size={16}
-            className="text-white/50 group-hover:text-white/70 transition-colors"
-          />
-        )}
-      </div>
-    ),
-    [expandedSections, toggleSection]
-  );
 
   const handleStyleArrayChange = useCallback(
     (styleType: "all" | "chat" | "post", value: string, index: number) => {
@@ -355,13 +295,11 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
 
       {/* Character Template Selection */}
       <div className="pb-4 border-b border-white/10">
-        <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-          Character Template
-        </label>
-        <select
+        <FormSelect
+          label="Character Template"
           value={character.characterId || ""}
-          onChange={(e) => {
-            const characterId = e.target.value;
+          onChange={(value) => {
+            const characterId = value;
 
             if (characterId === "new") {
               // Create empty character data for new character
@@ -394,38 +332,38 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
               }
             }
           }}
-          className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-sm transition-all duration-300"
-        >
-          <option value="">Select a character template...</option>
-          <option value="new">New Character (Empty Template)</option>
-          {availableCharacters.map((charId) => (
-            <option key={charId} value={charId}>
-              {characterConfigs[charId].name}
-            </option>
-          ))}
-        </select>
+          options={[
+            { value: "", label: "Select a character template..." },
+            { value: "new", label: "New Character (Empty Template)" },
+            ...availableCharacters.map((charId) => ({
+              value: charId,
+              label: characterConfigs[charId].name,
+            })),
+          ]}
+          placeholder="Select a character template..."
+        />
       </div>
 
       {/* Basic Information */}
       <div className="space-y-4">
-        <SectionHeader title="Basic Information" icon={User} section="basic" />
+        <SectionHeader
+          title="Basic Information"
+          icon={User}
+          section="basic"
+          isExpanded={expandedSections.basic}
+          onToggle={toggleSection}
+        />
 
         {expandedSections.basic && (
           <div className="space-y-4 pl-6">
             {/* Character Name */}
-            <div>
-              <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                Name
-                <span className="text-red-400 ml-1">*</span>
-              </label>
-              <input
-                type="text"
-                value={character.name || ""}
-                onChange={(e) => handleInputChange("name", e.target.value)}
-                placeholder="Enter character name..."
-                className="w-full p-3 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-              />
-            </div>
+            <FormInput
+              label="Name"
+              value={character.name || ""}
+              onChange={(value) => handleInputChange("name", value)}
+              placeholder="Enter character name..."
+              required
+            />
 
             {/* System Prompt */}
             <div>
@@ -452,6 +390,8 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
           icon={FileText}
           section="bio"
           count={character.bio?.length || 0}
+          isExpanded={expandedSections.bio}
+          onToggle={toggleSection}
         />
 
         {expandedSections.bio && (
@@ -492,6 +432,8 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
           icon={MessageSquare}
           section="examples"
           count={character.messageExamples?.length || 0}
+          isExpanded={expandedSections.examples}
+          onToggle={toggleSection}
         />
 
         {expandedSections.examples && (
@@ -639,6 +581,8 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
             (character.adjectives?.length || 0) +
             (character.topics?.length || 0)
           }
+          isExpanded={expandedSections.traits}
+          onToggle={toggleSection}
         />
 
         {expandedSections.traits && (
@@ -741,6 +685,8 @@ const CharacterConfigForm: React.FC<CharacterConfigFormProps> = ({
               acc + (Array.isArray(arr) ? arr.length : 0),
             0
           )}
+          isExpanded={expandedSections.style}
+          onToggle={toggleSection}
         />
 
         {expandedSections.style && (

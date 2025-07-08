@@ -146,7 +146,7 @@ body {
 
 /* Custom scrollbar for dark UI */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 2px;
   background: #181A20;
 }
 ::-webkit-scrollbar-thumb {

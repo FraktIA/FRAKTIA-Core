@@ -1,12 +1,9 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { ChevronDown, ChevronUp, Mic, Settings } from "lucide-react";
+import { Mic, Settings } from "lucide-react";
 // import { Checkmark } from "../Checkmark";
-import { VoiceNodeData } from "@/types/nodeData";
-
-interface VoiceConfigFormProps {
-  localNodeData: VoiceNodeData;
-  handleInputChange: (field: string, value: string | boolean) => void;
-}
+import { VoiceConfigFormProps } from "@/types/configForms";
+import SectionHeader from "./SectionHeader";
+import FormSelect from "../form/FormSelect";
 
 const VoiceConfigForm: React.FC<VoiceConfigFormProps> = ({
   localNodeData,
@@ -42,42 +39,6 @@ const VoiceConfigForm: React.FC<VoiceConfigFormProps> = ({
     }));
   }, []);
 
-  const SectionHeader = useCallback(
-    ({
-      title,
-      icon: Icon,
-      section,
-    }: {
-      title: string;
-      icon: React.ComponentType<{ size?: number; className?: string }>;
-      section: string;
-    }) => (
-      <div
-        className="flex items-center justify-between cursor-pointer group"
-        onClick={() => toggleSection(section)}
-      >
-        <div className="flex items-center gap-2">
-          <Icon size={16} className="text-primary" />
-          <h3 className="text-sm font-semibold text-white tracking-wide">
-            {title}
-          </h3>
-        </div>
-        {expandedSections[section as keyof typeof expandedSections] ? (
-          <ChevronUp
-            size={16}
-            className="text-white/50 group-hover:text-white/70 transition-colors"
-          />
-        ) : (
-          <ChevronDown
-            size={16}
-            className="text-white/50 group-hover:text-white/70 transition-colors"
-          />
-        )}
-      </div>
-    ),
-    [expandedSections, toggleSection]
-  );
-
   return (
     <div className="space-y-6 h-full p-6 relative">
       {/* Status Indicator */}
@@ -90,47 +51,47 @@ const VoiceConfigForm: React.FC<VoiceConfigFormProps> = ({
 
       {/* Voice Selection */}
       <div className="space-y-4">
-        <SectionHeader title="Voice Selection" icon={Mic} section="voice" />
+        <SectionHeader
+          title="Voice Selection"
+          icon={Mic}
+          section="voice"
+          isExpanded={expandedSections.voice}
+          onToggle={toggleSection}
+        />
 
         {expandedSections.voice && (
           <div className="space-y-4 pl-6">
-            <div>
-              <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                Voice Model
-              </label>
-              <select
-                value={String(localNodeData.voice || "en_US-hfc_male-medium")}
-                onChange={(e) => handleInputChange("voice", e.target.value)}
-                className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-sm transition-all duration-300"
-              >
-                <option value="en_US-hfc_male-medium">
-                  en_US-hfc_male-medium
-                </option>
-                <option value="en_US-hfc_female-medium">
-                  en_US-hfc_female-medium
-                </option>
-              </select>
-            </div>
+            <FormSelect
+              label="Voice Model"
+              value={String(localNodeData.voice || "en_US-hfc_male-medium")}
+              onChange={(value) => handleInputChange("voice", value)}
+              options={[
+                {
+                  value: "en_US-hfc_male-medium",
+                  label: "en_US-hfc_male-medium",
+                },
+                {
+                  value: "en_US-hfc_female-medium",
+                  label: "en_US-hfc_female-medium",
+                },
+              ]}
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                Language
-              </label>
-              <select
-                value={String(localNodeData.language || "en")}
-                onChange={(e) => handleInputChange("language", e.target.value)}
-                className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-sm transition-all duration-300"
-              >
-                <option value="en">English</option>
-                {/* <option value="es">Spanish</option>
-                <option value="fr">French</option>
-                <option value="de">German</option>
-                <option value="it">Italian</option>
-                <option value="pt">Portuguese</option>
-                <option value="zh">Chinese</option>
-                <option value="ja">Japanese</option> */}
-              </select>
-            </div>
+            <FormSelect
+              label="Language"
+              value={String(localNodeData.language || "en")}
+              onChange={(value) => handleInputChange("language", value)}
+              options={[
+                { value: "en", label: "English" },
+                // { value: "es", label: "Spanish" },
+                // { value: "fr", label: "French" },
+                // { value: "de", label: "German" },
+                // { value: "it", label: "Italian" },
+                // { value: "pt", label: "Portuguese" },
+                // { value: "zh", label: "Chinese" },
+                // { value: "ja", label: "Japanese" },
+              ]}
+            />
           </div>
         )}
       </div>
@@ -141,6 +102,8 @@ const VoiceConfigForm: React.FC<VoiceConfigFormProps> = ({
           title="Voice Settings"
           icon={Settings}
           section="settings"
+          isExpanded={expandedSections.settings}
+          onToggle={toggleSection}
         />
 
         {expandedSections.settings && (

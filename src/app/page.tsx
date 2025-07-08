@@ -60,7 +60,8 @@ export default function Manage() {
       updateSelectedNode();
     }, 500); // Update every 500ms
     return () => clearInterval(interval);
-  }, [updateCurrentNodes, updateSelectedNode]);
+    //eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // useEffect(() => {
   //   if (!isConnected) {
@@ -115,6 +116,7 @@ export default function Manage() {
 
       // Plugin nodes
       Twitter: "plugin",
+      Discord: "plugin",
     };
 
     return nodeTypeMap[nodeName] || "framework";
@@ -164,6 +166,7 @@ export default function Manage() {
             updatedData = {
               ...updatedData,
               provider,
+              label: nodeName,
               configured: true,
             };
           }
@@ -186,6 +189,15 @@ export default function Manage() {
               configured: true,
             };
           }
+          break;
+
+        case "plugin":
+          // Set the service type for plugin nodes
+          updatedData = {
+            ...updatedData,
+            service: nodeName, // Set service to the node name (Twitter, Discord, etc.)
+            configured: false, // Plugins need further configuration
+          };
           break;
 
         default:
@@ -246,7 +258,7 @@ export default function Manage() {
       agentBuilderRef.current.clearSelectedNode();
       dispatch(setShowNodesPanel(false));
     }
-  }, [dispatch]);
+  }, []);
 
   // const handleAgentSettings = useCallback(() => {
   //   // TODO: Implement agent settings modal or navigation
@@ -304,7 +316,7 @@ export default function Manage() {
         sessionStorage.removeItem("editingAgentInfo");
       }
     }
-  }, [dispatch]); // Remove searchParams dependency
+  }, []); // Remove searchParams dependency
 
   // Check for editing parameters in URL (keep as fallback)
   useEffect(() => {

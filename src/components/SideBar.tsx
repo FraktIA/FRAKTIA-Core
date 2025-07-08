@@ -238,7 +238,7 @@ const SideBar = ({ sidebarOpen, setSidebarOpen }: NodePanelProps) => {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [dispatch]);
+  }, []);
 
   // Sync dropdown state with activeMenu
   useEffect(() => {

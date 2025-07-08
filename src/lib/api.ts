@@ -36,7 +36,7 @@ export const createRetryAxios = (baseURL?: string): AxiosInstance => {
         config._retryCount = 0;
       }
 
-      const maxRetries = 3;
+      const maxRetries = 5;
       const shouldRetry = config._retryCount < maxRetries;
 
       // Check if error is retryable
@@ -49,7 +49,7 @@ export const createRetryAxios = (baseURL?: string): AxiosInstance => {
 
       if (shouldRetry && isRetryableError) {
         config._retryCount += 1;
-        const delay = config._retryCount * 1000; // Exponential backoff
+        const delay = config._retryCount * 3000; // Exponential backoff
 
         console.log(
           `Retry attempt ${config._retryCount}/${maxRetries} for ${

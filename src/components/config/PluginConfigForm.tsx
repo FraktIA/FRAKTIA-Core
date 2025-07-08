@@ -1,825 +1,387 @@
-import React, { useState, useCallback, memo, useEffect } from "react";
-import {
-  ChevronDown,
-  ChevronUp,
-  Puzzle,
-  Settings,
-  Key,
-  MessageCircle,
-  Zap,
-  Clock,
-  Target,
-} from "lucide-react";
-// import { Checkmark } from "../Checkmark";
-import { PluginNodeData } from "@/types/nodeData";
-
-interface PluginConfigFormProps {
-  localNodeData: PluginNodeData;
-  handleInputChange: (field: string, value: string | boolean) => void;
-}
+import React, { useState, useCallback, memo, useEffect, useMemo } from "react";
+import { Puzzle, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { PluginConfigFormProps } from "@/types/configForms";
+import { IndividualPluginConfig } from "@/types/nodeData";
+import TwitterPluginForm from "./TwitterPluginForm";
+import DiscordPluginForm from "./DiscordPluginForm";
+import FormSelect from "../form/FormSelect";
 
 const PluginConfigForm: React.FC<PluginConfigFormProps> = ({
   localNodeData,
   handleInputChange,
 }) => {
-  const [expandedSections, setExpandedSections] = useState({
-    service: true,
-    auth: false,
-    basic: false,
-    posting: false,
-    interactions: false,
-    timeline: false,
-    advanced: false,
-    config: false,
-  });
+  // Track which individual plugins are expanded
+  const [expandedPlugins, setExpandedPlugins] = useState<
+    Record<number, boolean>
+  >({});
 
-  const isTwitter = localNodeData.service === "Twitter";
+  // Ensure plugins is always an array using useMemo to prevent re-renders
+  const plugins = useMemo(
+    () => (Array.isArray(localNodeData.plugins) ? localNodeData.plugins : []),
+    [localNodeData.plugins]
+  );
 
-  // Validation function to check if the plugin node should be marked as configured
-  const isPluginConfigured = useCallback(() => {
-    if (isTwitter) {
-      // For Twitter, require all 4 API credentials
-      return !!(
-        localNodeData.twitterApiKey &&
-        localNodeData.twitterApiKey.trim() !== "" &&
-        localNodeData.twitterApiSecretKey &&
-        localNodeData.twitterApiSecretKey.trim() !== "" &&
-        localNodeData.twitterAccessToken &&
-        localNodeData.twitterAccessToken.trim() !== "" &&
-        localNodeData.twitterAccessTokenSecret &&
-        localNodeData.twitterAccessTokenSecret.trim() !== ""
+  const maxPlugins = 2;
+
+  // Get available plugin options (excluding already selected ones)
+  const getAvailablePluginOptions = useCallback(
+    (currentIndex: number) => {
+      const allOptions = [
+        { value: "twitter", label: "Twitter" },
+        { value: "discord", label: "Discord" },
+      ];
+
+      const usedServices = plugins
+        .map((plugin, index) =>
+          index !== currentIndex ? plugin.service : null
+        )
+        .filter(Boolean);
+
+      return allOptions.filter(
+        (option) => !usedServices.includes(option.value)
       );
-    } else {
-      // For other plugins, require API key
-      return !!(localNodeData.apiKey && localNodeData.apiKey.trim() !== "");
-    }
-  }, [
-    isTwitter,
-    localNodeData.twitterApiKey,
-    localNodeData.twitterApiSecretKey,
-    localNodeData.twitterAccessToken,
-    localNodeData.twitterAccessTokenSecret,
-    localNodeData.apiKey,
-  ]);
+    },
+    [plugins]
+  );
 
-  // Effect to update configured status whenever validation criteria changes
+  // Toggle plugin expansion
+  const togglePlugin = useCallback((index: number) => {
+    setExpandedPlugins((prev) => ({
+      ...prev,
+      [index]: !prev[index],
+    }));
+  }, []);
+
+  // Add a new plugin
+  const addPlugin = useCallback(() => {
+    if (plugins.length < maxPlugins) {
+      // Get available options for the new plugin
+      const availableOptions = getAvailablePluginOptions(plugins.length);
+      const defaultService =
+        availableOptions.length > 0 ? availableOptions[0].value : "twitter";
+
+      // Create new plugin with default configuration based on service type
+      let newPlugin: IndividualPluginConfig = {
+        service: defaultService,
+        configured: false,
+      };
+
+      // Add default configuration for Twitter
+      if (defaultService === "twitter") {
+        newPlugin = {
+          ...newPlugin,
+          // Twitter Authentication (required)
+          twitterApiKey: "",
+          twitterApiSecretKey: "",
+          twitterAccessToken: "",
+          twitterAccessTokenSecret: "",
+
+          // Twitter Basic Configuration
+          twitterDryRun: false,
+          twitterTargetUsers: "",
+          twitterRetryLimit: 5,
+          twitterPollInterval: 120,
+          twitterPostEnable: true,
+          twitterPostIntervalMin: 90,
+          twitterPostIntervalMax: 180,
+          twitterPostImmediately: true,
+          twitterPostIntervalVariance: 0.2,
+          twitterSearchEnable: false,
+
+          // Twitter Interaction Settings
+          twitterInteractionIntervalMin: 15,
+          twitterInteractionIntervalMax: 30,
+          twitterInteractionIntervalVariance: 0.3,
+          twitterAutoRespondMentions: false,
+          twitterAutoRespondReplies: false,
+          twitterMaxInteractionsPerRun: 10,
+
+          // Twitter Timeline Algorithm
+          twitterTimelineAlgorithm: "weighted",
+          twitterTimelineUserBasedWeight: 3,
+          twitterTimelineTimeBasedWeight: 2,
+          twitterTimelineRelevanceWeight: 5,
+
+          // Twitter Advanced Settings
+          twitterMaxTweetLength: 4000,
+          twitterDmOnly: false,
+          twitterEnableActionProcessing: false,
+          twitterActionInterval: 240,
+        };
+      }
+      // Add default configuration for Discord
+      else if (defaultService === "discord") {
+        newPlugin = {
+          ...newPlugin,
+          discordApplicationId: "",
+          discordApiToken: "",
+        };
+      }
+
+      const updatedPlugins = [...plugins, newPlugin];
+      handleInputChange("plugins", updatedPlugins);
+
+      // Auto-expand the new plugin
+      setExpandedPlugins((prev) => ({
+        ...prev,
+        [plugins.length]: true,
+      }));
+    }
+  }, [plugins, handleInputChange, maxPlugins, getAvailablePluginOptions]);
+
+  // Remove a plugin
+  const removePlugin = useCallback(
+    (index: number) => {
+      const updatedPlugins = plugins.filter((_, i) => i !== index);
+      handleInputChange("plugins", updatedPlugins);
+
+      // Clean up expansion state
+      setExpandedPlugins((prev) => {
+        const newState = { ...prev };
+        delete newState[index];
+        // Shift down the indices for plugins that come after the removed one
+        Object.keys(newState).forEach((key) => {
+          const keyNum = parseInt(key);
+          if (keyNum > index) {
+            newState[keyNum - 1] = newState[keyNum];
+            delete newState[keyNum];
+          }
+        });
+        return newState;
+      });
+    },
+    [plugins, handleInputChange]
+  );
+
+  // Update a specific plugin
+  const updatePlugin = useCallback(
+    (index: number, field: string, value: string | boolean | number) => {
+      const updatedPlugins = [...plugins];
+
+      // If changing service type, preserve basic fields but add default config for new service
+      if (field === "service") {
+        let newPluginData: IndividualPluginConfig = {
+          service: value as string,
+          configured: false,
+        };
+
+        // Add default configuration based on new service type
+        if (value === "twitter") {
+          newPluginData = {
+            ...newPluginData,
+            // Twitter Authentication (required)
+            twitterApiKey: "",
+            twitterApiSecretKey: "",
+            twitterAccessToken: "",
+            twitterAccessTokenSecret: "",
+
+            // Twitter Basic Configuration
+            twitterDryRun: false,
+            twitterTargetUsers: "",
+            twitterRetryLimit: 5,
+            twitterPollInterval: 120,
+            twitterPostEnable: true,
+            twitterPostIntervalMin: 90,
+            twitterPostIntervalMax: 180,
+            twitterPostImmediately: true,
+            twitterPostIntervalVariance: 0.2,
+            twitterSearchEnable: false,
+
+            // Twitter Interaction Settings
+            twitterInteractionIntervalMin: 15,
+            twitterInteractionIntervalMax: 30,
+            twitterInteractionIntervalVariance: 0.3,
+            twitterAutoRespondMentions: false,
+            twitterAutoRespondReplies: false,
+            twitterMaxInteractionsPerRun: 10,
+
+            // Twitter Timeline Algorithm
+            twitterTimelineAlgorithm: "weighted",
+            twitterTimelineUserBasedWeight: 3,
+            twitterTimelineTimeBasedWeight: 2,
+            twitterTimelineRelevanceWeight: 5,
+
+            // Twitter Advanced Settings
+            twitterMaxTweetLength: 4000,
+            twitterDmOnly: false,
+            twitterEnableActionProcessing: false,
+            twitterActionInterval: 240,
+          };
+        } else if (value === "discord") {
+          newPluginData = {
+            ...newPluginData,
+            discordApplicationId: "",
+            discordApiToken: "",
+          };
+        }
+
+        updatedPlugins[index] = newPluginData;
+      } else {
+        // Regular field update
+        updatedPlugins[index] = {
+          ...updatedPlugins[index],
+          [field]: value,
+        };
+      }
+
+      handleInputChange("plugins", updatedPlugins);
+    },
+    [plugins, handleInputChange]
+  );
+
+  // Validation function for plugins
+  const isPluginConfigured = useCallback(() => {
+    return (
+      plugins.length > 0 &&
+      plugins.every((plugin) => {
+        if (plugin.service === "twitter") {
+          return !!(
+            plugin.twitterApiKey &&
+            plugin.twitterApiKey.trim() !== "" &&
+            plugin.twitterApiSecretKey &&
+            plugin.twitterApiSecretKey.trim() !== "" &&
+            plugin.twitterAccessToken &&
+            plugin.twitterAccessToken.trim() !== "" &&
+            plugin.twitterAccessTokenSecret &&
+            plugin.twitterAccessTokenSecret.trim() !== ""
+          );
+        } else if (plugin.service === "discord") {
+          return !!(
+            plugin.discordApplicationId &&
+            plugin.discordApplicationId.trim() !== "" &&
+            plugin.discordApiToken &&
+            plugin.discordApiToken.trim() !== ""
+          );
+        }
+        return true; // For other plugin types
+      })
+    );
+  }, [plugins]);
+
+  // Effect to update configured status
   useEffect(() => {
     const configured = isPluginConfigured();
     if (localNodeData.configured !== configured) {
       handleInputChange("configured", configured);
     }
   }, [
-    localNodeData.twitterApiKey,
-    localNodeData.twitterApiSecretKey,
-    localNodeData.twitterAccessToken,
-    localNodeData.twitterAccessTokenSecret,
-    localNodeData.apiKey,
+    plugins,
     localNodeData.configured,
-    localNodeData.service,
     handleInputChange,
     isPluginConfigured,
   ]);
 
-  const toggleSection = useCallback((section: string) => {
-    setExpandedSections((prev) => ({
-      ...prev,
-      [section as keyof typeof prev]: !prev[section as keyof typeof prev],
-    }));
-  }, []);
-
-  const SectionHeader = useCallback(
-    ({
-      title,
-      icon: Icon,
-      section,
-    }: {
-      title: string;
-      icon: React.ComponentType<{ size?: number; className?: string }>;
-      section: string;
-    }) => (
-      <div
-        className="flex items-center justify-between cursor-pointer group"
-        onClick={() => toggleSection(section)}
-      >
-        <div className="flex items-center gap-2">
-          <Icon size={16} className="text-primary" />
-          <h3 className="text-sm font-semibold text-white tracking-wide">
-            {title}
-          </h3>
-        </div>
-        {expandedSections[section as keyof typeof expandedSections] ? (
-          <ChevronUp
-            size={16}
-            className="text-white/50 group-hover:text-white/70 transition-colors"
-          />
-        ) : (
-          <ChevronDown
-            size={16}
-            className="text-white/50 group-hover:text-white/70 transition-colors"
-          />
-        )}
-      </div>
-    ),
-    [expandedSections, toggleSection]
-  );
+  const renderPluginConfig = (
+    plugin: IndividualPluginConfig,
+    index: number
+  ) => {
+    if (plugin.service === "twitter") {
+      return (
+        <TwitterPluginForm
+          localNodeData={{ ...localNodeData, ...plugin }}
+          handleInputChange={(field, value) =>
+            updatePlugin(index, field, value)
+          }
+        />
+      );
+    } else if (plugin.service === "discord") {
+      return (
+        <DiscordPluginForm
+          localNodeData={{ ...localNodeData, ...plugin }}
+          handleInputChange={(field, value) =>
+            updatePlugin(index, field, value)
+          }
+        />
+      );
+    }
+    return null;
+  };
 
   return (
-    <div className="space-y-6 h-full p-6 relative">
-      {/* Status Indicator */}
-      {/* <div className="absolute top-4 right-4 flex items-center gap-2">
-        <Checkmark
-          className={`w-4 h-4 ${
-            isPluginConfigured() ? "text-green-400" : "text-yellow-400"
-          } drop-shadow-lg`}
-        />
-        <span
-          className={`${
-            isPluginConfigured() ? "text-green-400" : "text-yellow-400"
-          } text-[10px] font-bold capitalize`}
-        >
-          {isPluginConfigured() ? "Ready" : "Setup Required"}
-        </span>
-      </div> */}
-
-      {/* Plugin Selection */}
+    <div className="space-y-6  h-full p-5 relative">
+      {/* Plugin Management Header */}
       <div className="space-y-4">
-        <SectionHeader
-          title="Plugin Selection"
-          icon={Puzzle}
-          section="service"
-        />
+        <div className="flex items-center justify-between">
+          {plugins.length < maxPlugins && (
+            <button
+              onClick={addPlugin}
+              className="flex items-center gap-2 px-3 py-2 bg-primary/20 hover:bg-primary/30 border border-primary/30 rounded-lg text-primary text-sm font-medium transition-all duration-200"
+            >
+              <Plus className="w-4 h-4" />
+              Add Plugin ({plugins.length}/{maxPlugins})
+            </button>
+          )}
+        </div>
 
-        {expandedSections.service && (
-          <div className="space-y-4 pl-6">
-            <div>
-              <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                Plugin Type
-              </label>
-              <select
-                value={String(localNodeData.service || "twitter")}
-                onChange={(e) => handleInputChange("service", e.target.value)}
-                className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-sm transition-all duration-300"
+        <div className="space-y-6">
+          {plugins.length === 0 && (
+            <div className="text-center py-8 text-gray-400 border border-dashed border-gray-600/30 rounded-lg">
+              <Puzzle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p className="text-sm">No plugins configured.</p>
+              <p className="text-xs mt-1">
+                Click &quot;Add Plugin&quot; to get started.
+              </p>
+            </div>
+          )}
+
+          {plugins.map((plugin, index) => {
+            const isExpanded = expandedPlugins[index] ?? true; // Default to expanded
+
+            return (
+              <div
+                key={index}
+                className="border border-gray-600/30 rounded-lg  overflow-hidden"
               >
-                <option value="twitter">Twitter/X</option>
-                <option value="discord">Discord</option>
-                <option value="telegram">Telegram</option>
-                <option value="slack">Slack</option>
-                <option value="blockchain">Blockchain</option>
-                <option value="webhook">Webhook</option>
-              </select>
-            </div>
-          </div>
-        )}
+                <div className="flex items-center justify-between p-4  border-b border-gray-600/30">
+                  <div
+                    className="flex items-center gap-3 cursor-pointer flex-1"
+                    onClick={() => togglePlugin(index)}
+                  >
+                    <span className="w-6 h-6 bg-primary/20 text-primary rounded-full flex items-center justify-center text-xs font-bold">
+                      {index + 1}
+                    </span>
+                    <h4 className="text-md capitalize font-medium text-white">
+                      - {plugin.service || "Unconfigured"}
+                    </h4>
+                    <div className="ml-auto mr-4">
+                      {isExpanded ? (
+                        <ChevronUp className="w-4 h-4 text-gray-400 transition-transform duration-200" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-gray-400 transition-transform duration-200" />
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent triggering the collapse/expand
+                      removePlugin(index);
+                    }}
+                    className="flex items-center gap-1 px-2 py-1 bg-red-600/20 hover:bg-red-600/30 border border-red-600/30 rounded-md text-red-400 text-xs transition-all duration-200"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+
+                {isExpanded && (
+                  <div className="p-4 space-y-4 animate-in slide-in-from-top duration-200">
+                    <FormSelect
+                      label="Service Type"
+                      value={plugin.service || ""}
+                      onChange={(value) =>
+                        updatePlugin(index, "service", value)
+                      }
+                      options={getAvailablePluginOptions(index)}
+                    />
+
+                    {plugin.service && renderPluginConfig(plugin, index)}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
-
-      {/* Twitter Authentication */}
-      {isTwitter && (
-        <div className="space-y-4">
-          <SectionHeader title="API Credentials" icon={Key} section="auth" />
-
-          {expandedSections.auth && (
-            <div className="space-y-4 pl-6">
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                  Twitter API Key
-                  <span className="text-primary ml-1">*</span>
-                </label>
-                <input
-                  type="password"
-                  value={String(localNodeData.twitterApiKey || "")}
-                  onChange={(e) =>
-                    handleInputChange("twitterApiKey", e.target.value)
-                  }
-                  placeholder="Your Twitter API Key"
-                  className="w-full p-3 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                  Twitter API Secret Key
-                  <span className="text-primary ml-1">*</span>
-                </label>
-                <input
-                  type="password"
-                  value={String(localNodeData.twitterApiSecretKey || "")}
-                  onChange={(e) =>
-                    handleInputChange("twitterApiSecretKey", e.target.value)
-                  }
-                  placeholder="Your Twitter API Secret Key"
-                  className="w-full p-3 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                  Access Token
-                  <span className="text-primary ml-1">*</span>
-                </label>
-                <input
-                  type="password"
-                  value={String(localNodeData.twitterAccessToken || "")}
-                  onChange={(e) =>
-                    handleInputChange("twitterAccessToken", e.target.value)
-                  }
-                  placeholder="Your Access Token"
-                  className="w-full p-3 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                  Access Token Secret
-                  <span className="text-primary ml-1">*</span>
-                </label>
-                <input
-                  type="password"
-                  value={String(localNodeData.twitterAccessTokenSecret || "")}
-                  onChange={(e) =>
-                    handleInputChange(
-                      "twitterAccessTokenSecret",
-                      e.target.value
-                    )
-                  }
-                  placeholder="Your Access Token Secret"
-                  className="w-full p-3 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Twitter Basic Configuration */}
-      {isTwitter && (
-        <div className="space-y-4">
-          <SectionHeader
-            title="Basic Configuration"
-            icon={Settings}
-            section="basic"
-          />
-
-          {expandedSections.basic && (
-            <div className="space-y-4 pl-6">
-              <div className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  id="twitterDryRun"
-                  checked={Boolean(localNodeData.twitterDryRun)}
-                  onChange={(e) =>
-                    handleInputChange(
-                      "twitterDryRun",
-                      e.target.checked.toString()
-                    )
-                  }
-                  className="w-4 h-4 text-primary bg-bg border-gray-600 rounded focus:ring-primary focus:ring-2"
-                />
-                <label
-                  htmlFor="twitterDryRun"
-                  className="text-sm text-white/70 tracking-wide"
-                >
-                  Dry Run Mode (testing without posting)
-                </label>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                  Target Users
-                </label>
-                <input
-                  type="text"
-                  value={String(localNodeData.twitterTargetUsers || "")}
-                  onChange={(e) =>
-                    handleInputChange("twitterTargetUsers", e.target.value)
-                  }
-                  placeholder="Comma-separated usernames or * for all"
-                  className="w-full p-3 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                    Retry Limit
-                  </label>
-                  <input
-                    type="number"
-                    value={String(localNodeData.twitterRetryLimit || 5)}
-                    onChange={(e) =>
-                      handleInputChange("twitterRetryLimit", e.target.value)
-                    }
-                    min="1"
-                    max="20"
-                    className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                    Poll Interval (seconds)
-                  </label>
-                  <input
-                    type="number"
-                    value={String(localNodeData.twitterPollInterval || 120)}
-                    onChange={(e) =>
-                      handleInputChange("twitterPollInterval", e.target.value)
-                    }
-                    min="30"
-                    max="3600"
-                    className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Twitter Post Generation */}
-      {isTwitter && (
-        <div className="space-y-4">
-          <SectionHeader
-            title="Post Generation"
-            icon={MessageCircle}
-            section="posting"
-          />
-
-          {expandedSections.posting && (
-            <div className="space-y-4 pl-6">
-              <div className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  id="twitterPostEnable"
-                  checked={Boolean(localNodeData.twitterPostEnable)}
-                  onChange={(e) =>
-                    handleInputChange(
-                      "twitterPostEnable",
-                      e.target.checked.toString()
-                    )
-                  }
-                  className="w-4 h-4 text-primary bg-bg border-gray-600 rounded focus:ring-primary focus:ring-2"
-                />
-                <label
-                  htmlFor="twitterPostEnable"
-                  className="text-sm text-white/70 tracking-wide"
-                >
-                  Enable Autonomous Tweet Posting
-                </label>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                    Min Interval (minutes)
-                  </label>
-                  <input
-                    type="number"
-                    value={String(localNodeData.twitterPostIntervalMin || 90)}
-                    onChange={(e) =>
-                      handleInputChange(
-                        "twitterPostIntervalMin",
-                        e.target.value
-                      )
-                    }
-                    min="1"
-                    className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                    Max Interval (minutes)
-                  </label>
-                  <input
-                    type="number"
-                    value={String(localNodeData.twitterPostIntervalMax || 180)}
-                    onChange={(e) =>
-                      handleInputChange(
-                        "twitterPostIntervalMax",
-                        e.target.value
-                      )
-                    }
-                    min="1"
-                    className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  id="twitterPostImmediately"
-                  checked={Boolean(localNodeData.twitterPostImmediately)}
-                  onChange={(e) =>
-                    handleInputChange(
-                      "twitterPostImmediately",
-                      e.target.checked.toString()
-                    )
-                  }
-                  className="w-4 h-4 text-primary bg-bg border-gray-600 rounded focus:ring-primary focus:ring-2"
-                />
-                <label
-                  htmlFor="twitterPostImmediately"
-                  className="text-sm text-white/70 tracking-wide"
-                >
-                  Post Immediately (skip intervals)
-                </label>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                  Interval Variance (0.0 - 1.0)
-                </label>
-                <input
-                  type="number"
-                  value={String(
-                    localNodeData.twitterPostIntervalVariance || 0.2
-                  )}
-                  onChange={(e) =>
-                    handleInputChange(
-                      "twitterPostIntervalVariance",
-                      e.target.value
-                    )
-                  }
-                  step="0.1"
-                  min="0"
-                  max="1"
-                  className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Twitter Interactions */}
-      {isTwitter && (
-        <div className="space-y-4">
-          <SectionHeader
-            title="Interaction Settings"
-            icon={Target}
-            section="interactions"
-          />
-
-          {expandedSections.interactions && (
-            <div className="space-y-4 pl-6">
-              <div className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  id="twitterSearchEnable"
-                  checked={Boolean(localNodeData.twitterSearchEnable !== false)}
-                  onChange={(e) =>
-                    handleInputChange(
-                      "twitterSearchEnable",
-                      e.target.checked.toString()
-                    )
-                  }
-                  className="w-4 h-4 text-primary bg-bg border-gray-600 rounded focus:ring-primary focus:ring-2"
-                />
-                <label
-                  htmlFor="twitterSearchEnable"
-                  className="text-sm text-white/70 tracking-wide"
-                >
-                  Enable Timeline Monitoring
-                </label>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                    Min Interaction Interval (min)
-                  </label>
-                  <input
-                    type="number"
-                    value={String(
-                      localNodeData.twitterInteractionIntervalMin || 15
-                    )}
-                    onChange={(e) =>
-                      handleInputChange(
-                        "twitterInteractionIntervalMin",
-                        e.target.value
-                      )
-                    }
-                    min="1"
-                    className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                    Max Interaction Interval (min)
-                  </label>
-                  <input
-                    type="number"
-                    value={String(
-                      localNodeData.twitterInteractionIntervalMax || 30
-                    )}
-                    onChange={(e) =>
-                      handleInputChange(
-                        "twitterInteractionIntervalMax",
-                        e.target.value
-                      )
-                    }
-                    min="1"
-                    className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  id="twitterAutoRespondMentions"
-                  checked={Boolean(
-                    localNodeData.twitterAutoRespondMentions !== false
-                  )}
-                  onChange={(e) =>
-                    handleInputChange(
-                      "twitterAutoRespondMentions",
-                      e.target.checked.toString()
-                    )
-                  }
-                  className="w-4 h-4 text-primary bg-bg border-gray-600 rounded focus:ring-primary focus:ring-2"
-                />
-                <label
-                  htmlFor="twitterAutoRespondMentions"
-                  className="text-sm text-white/70 tracking-wide"
-                >
-                  Auto-respond to Mentions
-                </label>
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  id="twitterAutoRespondReplies"
-                  checked={Boolean(
-                    localNodeData.twitterAutoRespondReplies !== false
-                  )}
-                  onChange={(e) =>
-                    handleInputChange(
-                      "twitterAutoRespondReplies",
-                      e.target.checked.toString()
-                    )
-                  }
-                  className="w-4 h-4 text-primary bg-bg border-gray-600 rounded focus:ring-primary focus:ring-2"
-                />
-                <label
-                  htmlFor="twitterAutoRespondReplies"
-                  className="text-sm text-white/70 tracking-wide"
-                >
-                  Auto-respond to Replies
-                </label>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                  Max Interactions Per Run
-                </label>
-                <input
-                  type="number"
-                  value={String(
-                    localNodeData.twitterMaxInteractionsPerRun || 10
-                  )}
-                  onChange={(e) =>
-                    handleInputChange(
-                      "twitterMaxInteractionsPerRun",
-                      e.target.value
-                    )
-                  }
-                  min="1"
-                  max="100"
-                  className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Twitter Timeline Algorithm */}
-      {isTwitter && (
-        <div className="space-y-4">
-          <SectionHeader
-            title="Timeline Algorithm"
-            icon={Zap}
-            section="timeline"
-          />
-
-          {expandedSections.timeline && (
-            <div className="space-y-4 pl-6">
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                  Algorithm Type
-                </label>
-                <select
-                  value={String(
-                    localNodeData.twitterTimelineAlgorithm || "weighted"
-                  )}
-                  onChange={(e) =>
-                    handleInputChange(
-                      "twitterTimelineAlgorithm",
-                      e.target.value
-                    )
-                  }
-                  className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary text-sm transition-all duration-300"
-                >
-                  <option value="weighted">Weighted Scoring</option>
-                  <option value="latest">Latest First</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                    User Weight
-                  </label>
-                  <input
-                    type="number"
-                    value={String(
-                      localNodeData.twitterTimelineUserBasedWeight || 3
-                    )}
-                    onChange={(e) =>
-                      handleInputChange(
-                        "twitterTimelineUserBasedWeight",
-                        e.target.value
-                      )
-                    }
-                    min="0"
-                    max="10"
-                    className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                    Time Weight
-                  </label>
-                  <input
-                    type="number"
-                    value={String(
-                      localNodeData.twitterTimelineTimeBasedWeight || 2
-                    )}
-                    onChange={(e) =>
-                      handleInputChange(
-                        "twitterTimelineTimeBasedWeight",
-                        e.target.value
-                      )
-                    }
-                    min="0"
-                    max="10"
-                    className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                    Relevance Weight
-                  </label>
-                  <input
-                    type="number"
-                    value={String(
-                      localNodeData.twitterTimelineRelevanceWeight || 5
-                    )}
-                    onChange={(e) =>
-                      handleInputChange(
-                        "twitterTimelineRelevanceWeight",
-                        e.target.value
-                      )
-                    }
-                    min="0"
-                    max="10"
-                    className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Twitter Advanced Settings */}
-      {isTwitter && (
-        <div className="space-y-4">
-          <SectionHeader
-            title="Advanced Settings"
-            icon={Clock}
-            section="advanced"
-          />
-
-          {expandedSections.advanced && (
-            <div className="space-y-4 pl-6">
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                  Max Tweet Length
-                </label>
-                <input
-                  type="number"
-                  value={String(localNodeData.twitterMaxTweetLength || 4000)}
-                  onChange={(e) =>
-                    handleInputChange("twitterMaxTweetLength", e.target.value)
-                  }
-                  min="280"
-                  max="10000"
-                  className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                />
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  id="twitterDmOnly"
-                  checked={Boolean(localNodeData.twitterDmOnly)}
-                  onChange={(e) =>
-                    handleInputChange(
-                      "twitterDmOnly",
-                      e.target.checked.toString()
-                    )
-                  }
-                  className="w-4 h-4 text-primary bg-bg border-gray-600 rounded focus:ring-primary focus:ring-2"
-                />
-                <label
-                  htmlFor="twitterDmOnly"
-                  className="text-sm text-white/70 tracking-wide"
-                >
-                  Direct Messages Only
-                </label>
-              </div>
-
-              <div className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  id="twitterEnableActionProcessing"
-                  checked={Boolean(localNodeData.twitterEnableActionProcessing)}
-                  onChange={(e) =>
-                    handleInputChange(
-                      "twitterEnableActionProcessing",
-                      e.target.checked.toString()
-                    )
-                  }
-                  className="w-4 h-4 text-primary bg-bg border-gray-600 rounded focus:ring-primary focus:ring-2"
-                />
-                <label
-                  htmlFor="twitterEnableActionProcessing"
-                  className="text-sm text-white/70 tracking-wide"
-                >
-                  Enable Timeline Action Processing
-                </label>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                  Action Processing Interval (minutes)
-                </label>
-                <input
-                  type="number"
-                  value={String(localNodeData.twitterActionInterval || 240)}
-                  onChange={(e) =>
-                    handleInputChange("twitterActionInterval", e.target.value)
-                  }
-                  min="1"
-                  className="w-full p-3 bg-bg border border-bg rounded-sm text-white focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Non-Twitter Plugin Configuration */}
-      {!isTwitter && (
-        <div className="space-y-4">
-          <SectionHeader
-            title="Configuration"
-            icon={Settings}
-            section="config"
-          />
-
-          {expandedSections.config && (
-            <div className="space-y-4 pl-6">
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                  API Key/Token
-                  <span className="text-primary ml-1">*</span>
-                </label>
-                <input
-                  type="password"
-                  value={String(localNodeData.apiKey || "")}
-                  onChange={(e) => handleInputChange("apiKey", e.target.value)}
-                  placeholder="Enter API key or token..."
-                  className="w-full p-3 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-white/70 mb-2 tracking-wide">
-                  Endpoint URL
-                </label>
-                <input
-                  type="url"
-                  value={String(localNodeData.endpoint || "")}
-                  onChange={(e) =>
-                    handleInputChange("endpoint", e.target.value)
-                  }
-                  placeholder="https://api.example.com"
-                  className="w-full p-3 bg-bg border border-bg rounded-sm text-white placeholder-gray-500 focus:outline-none focus:ring-[0.5px] focus:ring-primary transition-all duration-300 text-sm"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 };

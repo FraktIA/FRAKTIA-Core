@@ -29,7 +29,8 @@ export const useNodesSync = () => {
     (nodes: Node[]) => {
       dispatch(setAllNodes(nodes));
     },
-    [dispatch]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
   );
 
   // Function to sync selected node from ReactFlow to Redux
@@ -37,7 +38,8 @@ export const useNodesSync = () => {
     (node: Node | null) => {
       dispatch(setSelectedNode(node));
     },
-    [dispatch]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
   );
 
   // Function to sync multiple selected nodes from ReactFlow to Redux
@@ -45,7 +47,8 @@ export const useNodesSync = () => {
     (nodes: Node[]) => {
       dispatch(setSelectedNodes(nodes));
     },
-    [dispatch]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
   );
 
   // Function to update a specific node's data
@@ -53,7 +56,8 @@ export const useNodesSync = () => {
     (nodeId: string, data: Record<string, unknown>) => {
       dispatch(updateNode({ nodeId, data }));
     },
-    [dispatch]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
   );
 
   // Function to perform a complete sync of all data
@@ -63,7 +67,8 @@ export const useNodesSync = () => {
         syncNodes({ allNodes: allNodesData, selectedNodes: selectedNodesData })
       );
     },
-    [dispatch]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
   );
 
   // Function to get current Redux state for API calls

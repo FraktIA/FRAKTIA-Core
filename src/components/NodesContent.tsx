@@ -163,6 +163,14 @@ const nodeData: Record<string, NodeItem[]> = {
       icon: "/icons/x.svg",
       type: "Plugins" as const,
     },
+    {
+      name: "Discord",
+      description:
+        "A Discord client implementation, enabling rich integration with Discord servers for managing interactions, voice, and message handling.",
+      highlight: !true,
+      icon: "/icons/discord.svg",
+      type: "Plugins" as const,
+    },
   ],
 };
 
