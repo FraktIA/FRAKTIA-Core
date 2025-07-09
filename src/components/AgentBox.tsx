@@ -23,11 +23,18 @@ interface AgentCardProps {
   src: string;
   name: string;
   id: string;
+  status?: "active" | "inactive";
   className?: string;
   delay?: number;
 }
 
-export const AgentBox = ({ src, name, id, className = "" }: AgentCardProps) => {
+export const AgentBox = ({
+  src,
+  name,
+  id,
+  status = "inactive",
+  className = "",
+}: AgentCardProps) => {
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
   const [isLoadingEdit, setIsLoadingEdit] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -197,8 +204,11 @@ export const AgentBox = ({ src, name, id, className = "" }: AgentCardProps) => {
   };
   const actionButtons = [
     {
-      iconName: "fluent:chat-20-regular",
-      text: "Chat",
+      iconName:
+        status === "active"
+          ? "fluent:chat-20-regular"
+          : "fluent:play-20-regular",
+      text: status === "active" ? "Chat" : "Start",
       color: "#ffffff",
       action: handleChatClick,
       loading: isCreatingRoom,
@@ -245,6 +255,7 @@ export const AgentBox = ({ src, name, id, className = "" }: AgentCardProps) => {
               text={button.text}
               color={button.color}
               onClick={button.action}
+              loading={button.loading}
               // className={`${button.text == "Chat" ? "hidden lg:flex" : ""}`}
             />
           ))}

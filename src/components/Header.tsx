@@ -190,16 +190,16 @@ const Header = ({
           </div>
 
           {activeMenu === "Agents" ? (
-            <p className="text-xs text-white/70">
+            <p className="text-xs tracking-wider  text-white/80">
               Take a look at your deployed agents
             </p>
           ) : isEditingAgent ? (
-            <p className="text-xs text-white/70">
+            <p className="text-xs tracking-wider text-white/80">
               <span className="font-medium">Modify</span> components{" "}
               <span className="font-medium">and</span> re-deploy your agent
             </p>
           ) : (
-            <p className="text-xs text-white/70">
+            <p className="text-xs tracking-wider text-white/80">
               <span className="font-medium">Select</span> components{" "}
               <span className="font-medium">to</span> configure and build your
               agent

@@ -143,76 +143,76 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
 
           // Configuration options
           settings.secrets.TWITTER_DRY_RUN = String(
-            plugin?.twitterDryRun || false
+            plugin?.twitterDryRun ?? false
           );
           settings.secrets.TWITTER_TARGET_USERS = String(
-            plugin?.twitterTargetUsers || ""
+            plugin?.twitterTargetUsers ?? ""
           );
           settings.secrets.TWITTER_RETRY_LIMIT = String(
-            plugin?.twitterRetryLimit || 5
+            plugin?.twitterRetryLimit ?? 5
           );
           settings.secrets.TWITTER_POLL_INTERVAL = String(
-            plugin?.twitterPollInterval || 120
+            plugin?.twitterPollInterval ?? 3600
           );
           settings.secrets.TWITTER_POST_ENABLE = String(
-            plugin?.twitterPostEnable || true
+            plugin?.twitterPostEnable ?? false
           );
           settings.secrets.TWITTER_POST_INTERVAL_MIN = String(
-            plugin?.twitterPostIntervalMin || 30
+            plugin?.twitterPostIntervalMin ?? 180
           );
           settings.secrets.TWITTER_POST_INTERVAL_MAX = String(
-            plugin?.twitterPostIntervalMax || 180
+            plugin?.twitterPostIntervalMax ?? 360
           );
           settings.secrets.TWITTER_POST_IMMEDIATELY = String(
-            plugin?.twitterPostImmediately || true
+            plugin?.twitterPostImmediately ?? false
           );
           settings.secrets.TWITTER_POST_INTERVAL_VARIANCE = String(
-            plugin?.twitterPostIntervalVariance || 0.2
+            plugin?.twitterPostIntervalVariance ?? 0.2
           );
           settings.secrets.TWITTER_SEARCH_ENABLE = String(
-            plugin?.twitterSearchEnable || false
+            plugin?.twitterSearchEnable ?? false
           );
           settings.secrets.TWITTER_INTERACTION_INTERVAL_MIN = String(
-            plugin?.twitterInteractionIntervalMin || 15
+            plugin?.twitterInteractionIntervalMin ?? 60
           );
           settings.secrets.TWITTER_INTERACTION_INTERVAL_MAX = String(
-            plugin?.twitterInteractionIntervalMax || 30
+            plugin?.twitterInteractionIntervalMax ?? 120
           );
           settings.secrets.TWITTER_INTERACTION_INTERVAL_VARIANCE = String(
-            plugin?.twitterInteractionIntervalVariance || 0.3
+            plugin?.twitterInteractionIntervalVariance ?? 0.3
           );
           settings.secrets.TWITTER_AUTO_RESPOND_MENTIONS = String(
-            plugin?.twitterAutoRespondMentions || false
+            plugin?.twitterAutoRespondMentions ?? false
           );
           settings.secrets.TWITTER_AUTO_RESPOND_REPLIES = String(
-            plugin?.twitterAutoRespondReplies || false
+            plugin?.twitterAutoRespondReplies ?? false
           );
           settings.secrets.TWITTER_MAX_INTERACTIONS_PER_RUN = String(
-            plugin?.twitterMaxInteractionsPerRun || 10
+            plugin?.twitterMaxInteractionsPerRun ?? 10
           );
           settings.secrets.TWITTER_TIMELINE_ALGORITHM = String(
-            plugin?.twitterTimelineAlgorithm || "weighted"
+            plugin?.twitterTimelineAlgorithm ?? "weighted"
           );
           settings.secrets.TWITTER_TIMELINE_USER_BASED_WEIGHT = String(
-            plugin?.twitterTimelineUserBasedWeight || 3
+            plugin?.twitterTimelineUserBasedWeight ?? 3
           );
           settings.secrets.TWITTER_TIMELINE_TIME_BASED_WEIGHT = String(
-            plugin?.twitterTimelineTimeBasedWeight || 2
+            plugin?.twitterTimelineTimeBasedWeight ?? 2
           );
           settings.secrets.TWITTER_TIMELINE_RELEVANCE_WEIGHT = String(
-            plugin?.twitterTimelineRelevanceWeight || 5
+            plugin?.twitterTimelineRelevanceWeight ?? 5
           );
           settings.secrets.TWITTER_MAX_TWEET_LENGTH = String(
-            plugin?.twitterMaxTweetLength || 4000
+            plugin?.twitterMaxTweetLength ?? 4000
           );
           settings.secrets.TWITTER_DM_ONLY = String(
-            plugin?.twitterDmOnly || false
+            plugin?.twitterDmOnly ?? false
           );
           settings.secrets.TWITTER_ENABLE_ACTION_PROCESSING = String(
-            plugin?.twitterEnableActionProcessing || false
+            plugin?.twitterEnableActionProcessing ?? false
           );
           settings.secrets.TWITTER_ACTION_INTERVAL = String(
-            plugin?.twitterActionInterval || 240
+            plugin?.twitterActionInterval ?? 240
           );
         }
         if (plugin.service === "discord") {
@@ -227,43 +227,43 @@ function transformToElizaFormat(agentData: AgentData): ElizaCharacter {
           }
           // Configuration options
           settings.secrets.DISCORD_DRY_RUN = String(
-            plugin?.discordDryRun || false
+            plugin?.discordDryRun ?? false
           );
           settings.secrets.DISCORD_TARGET_CHANNELS = String(
-            plugin?.discordTargetChannels || ""
+            plugin?.discordTargetChannels ?? ""
           );
           settings.secrets.DISCORD_RESPONSE_CHANNELS = String(
-            plugin?.discordResponseChannels || ""
+            plugin?.discordResponseChannels ?? ""
           );
           settings.secrets.DISCORD_RETRY_LIMIT = String(
-            plugin?.discordRetryLimit || 5
+            plugin?.discordRetryLimit ?? 5
           );
           settings.secrets.DISCORD_POLL_INTERVAL = String(
-            plugin?.discordPollInterval || 60
+            plugin?.discordPollInterval ?? 60
           );
           settings.secrets.DISCORD_AUTO_RESPONSE = String(
-            plugin?.discordAutoResponse || true
+            plugin?.discordAutoResponse ?? true
           );
           settings.secrets.DISCORD_MAX_MESSAGE_LENGTH = String(
-            plugin?.discordMaxMessageLength || 2000
+            plugin?.discordMaxMessageLength ?? 2000
           );
           settings.secrets.DISCORD_ENABLE_VOICE_CHANNELS = String(
-            plugin?.discordEnableVoiceChannels || false
+            plugin?.discordEnableVoiceChannels ?? false
           );
           settings.secrets.DISCORD_MODERATE_CONTENT = String(
-            plugin?.discordModerateContent || false
+            plugin?.discordModerateContent ?? false
           );
           settings.secrets.DISCORD_ALLOWED_ROLES = String(
-            plugin?.discordAllowedRoles || ""
+            plugin?.discordAllowedRoles ?? ""
           );
           settings.secrets.DISCORD_BANNED_USERS = String(
-            plugin?.discordBannedUsers || ""
+            plugin?.discordBannedUsers ?? ""
           );
           settings.secrets.DISCORD_MESSAGE_INTERVAL_MIN = String(
-            plugin?.discordMessageIntervalMin || 30
+            plugin?.discordMessageIntervalMin ?? 30
           );
           settings.secrets.DISCORD_MESSAGE_INTERVAL_MAX = String(
-            plugin?.discordMessageIntervalMax || 120
+            plugin?.discordMessageIntervalMax ?? 120
           );
         }
       });

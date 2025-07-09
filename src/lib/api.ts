@@ -36,7 +36,7 @@ export const createRetryAxios = (baseURL?: string): AxiosInstance => {
         config._retryCount = 0;
       }
 
-      const maxRetries = 5;
+      const maxRetries = 3;
       const shouldRetry = config._retryCount < maxRetries;
 
       // Check if error is retryable
