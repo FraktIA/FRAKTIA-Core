@@ -80,17 +80,17 @@ const PluginConfigForm: React.FC<PluginConfigFormProps> = ({
           twitterDryRun: false,
           twitterTargetUsers: "",
           twitterRetryLimit: 5,
-          twitterPollInterval: 120,
+          twitterPollInterval: 3600, // 1 hour instead of 30 minutes
           twitterPostEnable: true,
-          twitterPostIntervalMin: 90,
-          twitterPostIntervalMax: 180,
-          twitterPostImmediately: true,
+          twitterPostIntervalMin: 180, // 3 hours instead of 90 minutes
+          twitterPostIntervalMax: 360, // 6 hours instead of 3 hours
+          twitterPostImmediately: false, // Don't post immediately on startup
           twitterPostIntervalVariance: 0.2,
           twitterSearchEnable: false,
 
           // Twitter Interaction Settings
-          twitterInteractionIntervalMin: 15,
-          twitterInteractionIntervalMax: 30,
+          twitterInteractionIntervalMin: 60, // 1 hour instead of 15 minutes
+          twitterInteractionIntervalMax: 120, // 2 hours instead of 30 minutes
           twitterInteractionIntervalVariance: 0.3,
           twitterAutoRespondMentions: false,
           twitterAutoRespondReplies: false,
@@ -179,17 +179,17 @@ const PluginConfigForm: React.FC<PluginConfigFormProps> = ({
             twitterDryRun: false,
             twitterTargetUsers: "",
             twitterRetryLimit: 5,
-            twitterPollInterval: 120,
+            twitterPollInterval: 3600, // 1 hour instead of 30 minutes
             twitterPostEnable: true,
-            twitterPostIntervalMin: 90,
-            twitterPostIntervalMax: 180,
-            twitterPostImmediately: true,
+            twitterPostIntervalMin: 180, // 3 hours instead of 90 minutes
+            twitterPostIntervalMax: 360, // 6 hours instead of 3 hours
+            twitterPostImmediately: false, // Don't post immediately on startup
             twitterPostIntervalVariance: 0.2,
             twitterSearchEnable: false,
 
             // Twitter Interaction Settings
-            twitterInteractionIntervalMin: 15,
-            twitterInteractionIntervalMax: 30,
+            twitterInteractionIntervalMin: 60, // 1 hour instead of 15 minutes
+            twitterInteractionIntervalMax: 120, // 2 hours instead of 30 minutes
             twitterInteractionIntervalVariance: 0.3,
             twitterAutoRespondMentions: false,
             twitterAutoRespondReplies: false,

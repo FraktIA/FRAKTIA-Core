@@ -19,6 +19,7 @@ const AgentSection = () => {
       name: string;
       avatarUrl: string;
       roomId?: string;
+      status?: "active" | "inactive";
     }>
   >([]);
   const [loadingAgents, setLoadingAgents] = useState(false);
@@ -191,6 +192,7 @@ const AgentSection = () => {
               src={agent.avatarUrl}
               name={agent.name}
               id={agent.id}
+              status={agent.status}
             />
           ))}
         </div>
